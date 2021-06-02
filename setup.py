@@ -8,6 +8,6 @@ setup(
     install_requires=[
         "networkx", # 2.5.1
         "numpy", # 1.20.2
-        "git+https://github.com/mackncheesiest/heft.git", # commit e263a76
+        # "heft @ https://github.com/mackncheesiest/heft@master", # commit e263a76
     ]
 )

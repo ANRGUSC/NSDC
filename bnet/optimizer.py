@@ -6,6 +6,7 @@ import numpy as np
 
 def find_network(networks: Iterable[nx.Graph], 
                  task_graph_sampler: Callable[[], nx.DiGraph],
+                 scheduler: Callable[[nx.Graph, nx.DiGraph], float],
                  samples: Union[int, Callable[[List[float]], bool]]) -> nx.Graph:
     if isinstance(samples, (int, float)):
         do_sample = lambda metrics: len(metrics) < samples 

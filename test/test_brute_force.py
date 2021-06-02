@@ -1,24 +1,32 @@
-from bnet.generators import random_task_graph, random_network
-from bnet.optimizer import find_network
-from itertools import combinations
-from networkx import nx
+from bnet import TaskGraph, Network
+from bnet.optimizers import BruteForceOptimizer
+from bnet.generators import NaiveNetworkGenerator, NaiveTaskGraphGenerator
+from bnet.schedulers import HeftScheduler
 
 def main():
-    total_nodes = 10
-    max_nodes = 5
-    task_order = 5
-
-    complete_network = random_network(total_nodes, comp_multiplier_range=(3, 10), comm_range=(2, 5))
-    makespan, network = find_network(
-        networks=[
-            nx.subgraph(complete_network, sub)
-            for sub in combinations(complete_network.nodes, r=max_nodes)
-        ],
-        task_graph_sampler=lambda: random_task_graph(task_order, comp_range=[1, 4], data_range=[0, 3]),
-        samples=10
+    # Get Networks 
+    num_networks = 5
+    network_generator = NaiveNetworkGenerator(
+        num_nodes=5, 
+        comp_multiplier_range=[1, 5],
+        comm_range=[1, 10]
+    )
+    task_graph_generator = NaiveTaskGraphGenerator(
+        num_tasks=10,
+        comp_range=[1, 5],
+        data_range=[1, 4]
     )
 
-    print(f"Best Network (Makespan {makespan}): {list(network.nodes)}")
+    networks = [network_generator.generate() for _ in range(num_networks)]
+
+    optimizer = BruteForceOptimizer(samples=10)
+    for network, score, task_graph, best_network, best_score in optimizer.optimize_iter(
+            networks=networks,
+            task_graph_generator=task_graph_generator,
+            scheduler=HeftScheduler()):
+        print(score, best_score)
+    print(best_score)
+
 
 if __name__ == "__main__":
     main()
