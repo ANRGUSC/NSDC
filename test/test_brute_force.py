@@ -39,9 +39,9 @@ def main():
 
     optimizer = BruteForceOptimizer(samples=10)
     for network, score, task_graph, best_network, best_score in optimizer.optimize_iter(
-            networks=network.iter_subnetworks(),
-            task_graph_generator=task_graph_generator,
-            scheduler=HeftScheduler()):
+            networks=network.iter_subnetworks(),        # optimize over all subnetworks of the mother network
+            task_graph_generator=task_graph_generator,  # task graph generater to generate task graphs for scheduler
+            scheduler=HeftScheduler()):                 # scheduler to optimize with
         print(score, best_score)
     print(best_score)
 
