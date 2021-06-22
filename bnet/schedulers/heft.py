@@ -20,7 +20,7 @@ class HeftScheduler(Scheduler):
             nx.get_edge_attributes(dag, "data"), 
             name="weight"
         )
-        
+
         proc_sched, task_sched, dict_sched = schedule_dag(
             nx.relabel_nodes(dag, task_relabel),
             communication_matrix=comm.rename(

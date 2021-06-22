@@ -1,18 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any
-from heft.heft import schedule_dag
-
-from .. import Network, TaskGraph
-
-
-class NetworkGenerator(ABC):
-    def __init__(self) -> None:
-        super().__init__()
-
-    @abstractmethod
-    def generate(self) -> Network:
-        pass 
-    
+from ..task_graph import TaskGraph
 
 class TaskGraphGenerator(ABC):
     def __init__(self) -> None:
@@ -20,6 +7,11 @@ class TaskGraphGenerator(ABC):
 
     @abstractmethod
     def generate(self) -> TaskGraph:
+        """Generates a Task Graph
+
+        Returns:
+            TaskGraph: generated task graph
+        """
         pass 
 
 

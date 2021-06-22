@@ -1,27 +1,45 @@
-from bnet import TaskGraph, Network
+from bnet.task_graph import SimpleTaskGraph
+from bnet.network import SimpleNetwork
 from bnet.optimizers import BruteForceOptimizer
-from bnet.generators import NaiveNetworkGenerator, NaiveTaskGraphGenerator
 from bnet.schedulers import HeftScheduler
 
 def main():
-    # Get Networks 
-    num_networks = 5
-    network_generator = NaiveNetworkGenerator(
-        num_nodes=5, 
-        comp_multiplier_range=[1, 5],
-        comm_range=[1, 10]
-    )
-    task_graph_generator = NaiveTaskGraphGenerator(
+    task_graph_generator = SimpleTaskGraph.random_generator(
         num_tasks=10,
-        comp_range=[1, 5],
-        data_range=[1, 4]
+        task_cost={
+            SimpleTaskGraph.Cost.LOW: 300,
+            SimpleTaskGraph.Cost.HIGH: 500,
+        },
+        data_cost={
+            SimpleTaskGraph.Cost.LOW: 300,
+            SimpleTaskGraph.Cost.HIGH: 500,
+        }
     )
 
-    networks = [network_generator.generate() for _ in range(num_networks)]
+    # Generate a "mother network" and assign values to high/low values
+    network = SimpleNetwork.random(
+        num_nodes=5,
+        node_speed={
+            SimpleNetwork.Speed.LOW: 50,
+            SimpleNetwork.Speed.HIGH: 100,
+        },
+        sat_speed={
+            SimpleNetwork.Speed.LOW: 5,
+            SimpleNetwork.Speed.HIGH: 10,
+        },
+        radio_speed={
+            SimpleNetwork.Speed.LOW: 2,
+            SimpleNetwork.Speed.HIGH: 4,
+        },
+        gray_speed={
+            SimpleNetwork.Speed.LOW: 10,
+            SimpleNetwork.Speed.HIGH: 20,
+        }
+    )
 
     optimizer = BruteForceOptimizer(samples=10)
     for network, score, task_graph, best_network, best_score in optimizer.optimize_iter(
-            networks=networks,
+            networks=network.iter_subnetworks(),
             task_graph_generator=task_graph_generator,
             scheduler=HeftScheduler()):
         print(score, best_score)
