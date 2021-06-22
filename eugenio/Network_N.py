@@ -26,6 +26,8 @@ def subgraphs(N,min_N):
     
     
     G = nx.complete_graph(N)
+    #G=nx.random_internet_as_graph(N)
+    
     H_list=[] # H will be the different subgraphs of G
     
     for i in range(1,len(stored_list)+1):
