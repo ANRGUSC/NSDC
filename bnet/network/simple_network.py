@@ -1,5 +1,5 @@
 from itertools import chain, combinations
-from typing import Callable, Dict, List, Optional, Tuple, Generator, Union
+from typing import Callable, Dict, List, Optional, Set, Tuple, Generator, Union
 import networkx as nx
 import numpy as np
 import pandas as pd 
@@ -8,6 +8,7 @@ from networkx.generators.geometric import random_geometric_graph
 from numpy.random import zipf, rand
 import random
 from .network import Network
+import matplotlib.pyplot as plt
 
 class SimpleNetwork(Network):
     class Speed(Enum):
@@ -23,10 +24,10 @@ class SimpleNetwork(Network):
     ]
     
     def __init__(self, 
-                 node_speed: "SimpleNetwork.SpeedConverter" = None,
-                 radio_speed: "SimpleNetwork.SpeedConverter" = None,
-                 sat_speed: "SimpleNetwork.SpeedConverter" = None,
-                 gray_speed: "SimpleNetwork.SpeedConverter" = None) -> None:
+                 node_speed: Dict["SimpleNetwork.Speed", float] = {},
+                 radio_speed: Dict["SimpleNetwork.Speed", float] = {},
+                 sat_speed: Dict["SimpleNetwork.Speed", float] = {},
+                 gray_speed: Dict["SimpleNetwork.Speed", float] = {}) -> None:
         """Constructor for SimpleNetwork
 
         Args:
@@ -40,23 +41,23 @@ class SimpleNetwork(Network):
                 bandwidth (float) gray network edges. By Default, NONE=0, LOW=1, and HIGH=2.
         """
         super().__init__()
-        def speed_func(converter: "SimpleNetwork.SpeedConverter") -> Callable[["SimpleNetwork.Speed"], float]:
-            if converter is None:
-                func = lambda x: x.value
-            elif isinstance(converter, dict):
-                func = lambda x: converter[x]
-            else:
-                func = converter
-            def _func(speed: SimpleNetwork.Speed) -> float:
-                if speed == SimpleNetwork.Speed.NONE:
-                    return 0
-                return func(speed)
-            return _func 
         self._graph = nx.MultiGraph()
-        self.node_speed = speed_func(node_speed)
-        self.radio_speed = speed_func(radio_speed) 
-        self.sat_speed = speed_func(sat_speed)
-        self.gray_speed = speed_func(gray_speed)
+        self.node_speed = {
+            speed: node_speed.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
+        self.radio_speed = {
+            speed: radio_speed.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
+        self.sat_speed = {
+            speed: sat_speed.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
+        self.gray_speed = {
+            speed: gray_speed.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
 
     @property
     def nodes(self) -> List[str]:
@@ -197,18 +198,18 @@ class SimpleNetwork(Network):
         graph = self._graph.copy() 
         nx.set_node_attributes(
             graph, 
-            {node: self.node_speed(self._graph.nodes[node]["speed"]) for node in self._graph.nodes}, 
+            {node: self.node_speed[self._graph.nodes[node]["speed"]] for node in self._graph.nodes}, 
             name="speed"
         )
         speeds = {}
         for src, dst, key in self._graph.edges:
             speed = self._graph.edges[(src, dst, key)]["speed"]
             if key == "satellite":
-                speeds[(src, dst, key)] = self.sat_speed(speed)
+                speeds[(src, dst, key)] = self.sat_speed[speed]
             elif key == "radio":
-                speeds[(src, dst, key)] = self.radio_speed(speed)
+                speeds[(src, dst, key)] = self.radio_speed[speed]
             else:
-                speeds[(src, dst, key)] = self.gray_speed(speed)
+                speeds[(src, dst, key)] = self.gray_speed[speed]
         nx.set_edge_attributes(graph, speeds, name="speed")
 
     def to_networkx(self) -> nx.Graph:
@@ -224,7 +225,7 @@ class SimpleNetwork(Network):
         nx.set_node_attributes(
             graph, 
             {
-                node: self.node_speed(self._graph.nodes[node]["speed"]) 
+                node: self.node_speed[self._graph.nodes[node]["speed"]] 
                 for node in self._graph.nodes
             }, 
             name="speed"
@@ -241,11 +242,11 @@ class SimpleNetwork(Network):
                 continue 
               
             sat_speed = min(
-                self.sat_speed(self.get_satellite_edge(dst)),
-                self.sat_speed(self.get_satellite_edge(src))
+                self.sat_speed[self.get_satellite_edge(dst)],
+                self.sat_speed[self.get_satellite_edge(src)]
             )
-            gray_speed = self.gray_speed(self.get_gray_edge(src, dst))
-            radio_speed = self.radio_speed(self.get_radio_edge(src, dst)) 
+            gray_speed = self.gray_speed[self.get_gray_edge(src, dst)]
+            radio_speed = self.radio_speed[self.get_radio_edge(src, dst)] 
 
             graph.add_edge(src, dst, speed=sat_speed + gray_speed + radio_speed)
         
@@ -265,13 +266,81 @@ class SimpleNetwork(Network):
             network._graph = self._graph.edge_subgraph(subedges)
             yield network 
 
+    def draw(self, subedges: Set, ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+        satellite_subedges = {
+            a if b == "__satellite__" else b 
+            for a, b, key in subedges
+            if key == "satellite"
+        }
+        graph: nx.MultiGraph = self._graph.copy()
+        graph.remove_node("__satellite__")
+        colors = {
+            SimpleNetwork.Speed.NONE: "gray", 
+            SimpleNetwork.Speed.LOW: "#88C0D0",
+            SimpleNetwork.Speed.HIGH: "#A3BE8C"
+        }
+        styles = {
+            "gray": "solid", # "arc3, rad = 0.2",
+            "radio": "dotted", # "arc3, rad = 0.0"
+        }
+        widths = {
+            "gray": 3, # "arc3, rad = 0.2",
+            "radio": 6, # "arc3, rad = 0.0"
+        }
+        node_colors = [
+            colors[self.get_satellite_edge(node)]
+            for node in graph.nodes
+        ]
+        node_alpha = [
+            1 if node in satellite_subedges else 0.2
+            for node in graph.nodes
+        ]
+        edge_styles = [
+            styles[key] for src, dst, key in graph.edges
+        ]
+        edge_widths = [
+            widths[key] for src, dst, key in graph.edges
+        ]
+        edge_alpha = [
+            1 if edge in subedges else 0.2
+            for edge in graph.edges
+        ]
+        edge_colors = [
+            colors[self.get_gray_edge(src, dst) if key == "gray" else self.get_radio_edge(src, dst)]
+            for src, dst, key in graph.edges
+        ]
+        pos = [
+            graph.nodes[node]["pos"]
+            for node in graph.nodes
+        ]
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        nx.draw_networkx_nodes(
+            graph, pos=pos, ax=ax,
+            alpha=node_alpha, 
+            node_color=node_colors
+        )
+        nx.draw_networkx_labels(
+            graph, pos=pos, ax=ax
+        )
+        nx.draw_networkx_edges(
+            graph, pos=pos, ax=ax,
+            edge_color=edge_colors, style=edge_styles, width=edge_widths,
+            alpha=edge_alpha
+        )
+        return fig, ax
+        
+
     @classmethod
     def random_zipf(cls, 
                     zipf_constant: float,
-                    node_speed: "SimpleNetwork.SpeedConverter" = None,
-                    radio_speed: "SimpleNetwork.SpeedConverter" = None,
-                    sat_speed: "SimpleNetwork.SpeedConverter" = None,
-                    gray_speed: "SimpleNetwork.SpeedConverter" = None) -> "SimpleNetwork":
+                    node_speed: Dict["SimpleNetwork.Speed", float] = None,
+                    radio_speed: Dict["SimpleNetwork.Speed", float] = None,
+                    sat_speed: Dict["SimpleNetwork.Speed", float] = None,
+                    gray_speed: Dict["SimpleNetwork.Speed", float] = None) -> "SimpleNetwork":
         """Generates a random SimpleNetwork
 
         Generates a random geometric graph (in the unit square) with a random radius (0 to 1) to determine \
@@ -304,10 +373,10 @@ class SimpleNetwork(Network):
     @classmethod
     def random(cls, 
                num_nodes: float,
-               node_speed: "SimpleNetwork.SpeedConverter" = None,
-               radio_speed: "SimpleNetwork.SpeedConverter" = None,
-               sat_speed: "SimpleNetwork.SpeedConverter" = None,
-               gray_speed: "SimpleNetwork.SpeedConverter" = None) -> "SimpleNetwork":
+               node_speed: Dict["SimpleNetwork.Speed", float] = None,
+               radio_speed: Dict["SimpleNetwork.Speed", float] = None,
+               sat_speed: Dict["SimpleNetwork.Speed", float] = None,
+               gray_speed: Dict["SimpleNetwork.Speed", float] = None) -> "SimpleNetwork":
         """Generates a random SimpleNetwork
 
         Generates a random geometric graph (in the unit square) with a random radius (0 to 1) to determine \
