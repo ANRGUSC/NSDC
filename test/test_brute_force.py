@@ -1,3 +1,4 @@
+from bnet.task_graph.eugenio_simple_task_graph_generator import EugenioSimpleTaskGraphGenerator
 from bnet.task_graph import SimpleTaskGraph
 from bnet.network import SimpleNetwork
 from bnet.optimizers import BruteForceOptimizer
@@ -31,17 +32,19 @@ def main():
     )
 
     # Create a task graph generator so the optimizer can sample task graphs
-    task_graph_generator = SimpleTaskGraph.random_generator(
-        num_tasks=10,
-        task_cost={
-            SimpleTaskGraph.Cost.LOW: 300,
-            SimpleTaskGraph.Cost.HIGH: 500,
-        },
-        data_cost={
-            SimpleTaskGraph.Cost.LOW: 300,
-            SimpleTaskGraph.Cost.HIGH: 500,
-        }
-    )
+    # task_graph_generator = SimpleTaskGraph.random_generator(
+    #     num_tasks=10,
+    #     task_cost={
+    #         SimpleTaskGraph.Cost.LOW: 300,
+    #         SimpleTaskGraph.Cost.HIGH: 500,
+    #     },
+    #     data_cost={
+    #         SimpleTaskGraph.Cost.LOW: 300,
+    #         SimpleTaskGraph.Cost.HIGH: 500,
+    #     }
+    # )
+
+    task_graph_generator = EugenioSimpleTaskGraphGenerator(10, 15)
 
     results = BruteForceOptimizer(samples=10).optimize_iter(
         networks=mother_network.iter_subnetworks(),     # optimize over all subnetworks of the mother network
@@ -91,7 +94,6 @@ def main():
         ax1.set_xlabel(f"Average Score: {np.mean(scores):.2f} ({len(scores)} samples)")
         ax3.set_xlabel(f"Average Score: {best_score:.2f}")
 
-        print(score, best_score)
         mother_network.draw(network.edges, ax=ax1)
         if best_network is not None:
             mother_network.draw(best_network.edges, ax=ax3)
