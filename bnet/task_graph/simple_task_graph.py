@@ -52,6 +52,9 @@ class SimpleTaskGraph(TaskGraph):
         if cost != SimpleTaskGraph.Cost.NONE:
             self._graph.add_node(name, cost=cost)
 
+    def remove_task(self, name: str) -> None:
+        self._graph.remove_node(name)
+
     def add_dependency(self, src: str, dst: str, data: "SimpleTaskGraph.Cost") -> None:
         """Adds a dependency to the task graph
         
@@ -64,6 +67,9 @@ class SimpleTaskGraph(TaskGraph):
         """
         if data != SimpleTaskGraph.Cost.NONE:
             self._graph.add_edge(src, dst, data=data)
+
+    def remove_dependency(self, src: str, dst: str) -> None:
+        self._graph.remove_edge(src, dst)
 
     def computation_matrix(self, network: Network) -> pd.DataFrame:   
         """Returns computation matrix for a given task graph and network

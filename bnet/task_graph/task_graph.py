@@ -20,6 +20,16 @@ class TaskGraph(ABC):
             cost: Cost of task.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def remove_task(self, name: str) -> None:
+        """Removes a task from the task graph
+
+        Args:
+            name: Name for task.
+        """
+        raise NotImplementedError
+
     
     @abstractmethod
     def add_dependency(self, src: str, dst: str, data: float) -> None:
@@ -31,6 +41,16 @@ class TaskGraph(ABC):
             data: Amount of data to be sent between tasks. This value interacts with the \
                 bandwidth of the edge the data is sent over. The data takes data / b \
                 to be sent over a channel with b bandwidth.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_dependency(self, src: str, dst: str) -> None:
+        """Removes a dependency from the task graph
+
+        Args:
+            src: Source task which sends data to dst.
+            dst: Destination task which depends on the output of src.
         """
         raise NotImplementedError
 
