@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np
 import matplotlib.patches as mpatches
+from matplotlib.gridspec import GridSpec
 
 
 def main():
@@ -33,7 +34,7 @@ def main():
 
     # Create a task graph generator so the optimizer can sample task graphs
     # task_graph_generator = SimpleTaskGraph.random_generator(
-    #     num_tasks=10,
+    #     num_tasks=15,
     #     task_cost={
     #         SimpleTaskGraph.Cost.LOW: 300,
     #         SimpleTaskGraph.Cost.HIGH: 500,
@@ -44,33 +45,74 @@ def main():
     #     }
     # )
 
-    task_graph_generator = EugenioSimpleTaskGraphGenerator(10, 15)
+    task_graph_generator = EugenioSimpleTaskGraphGenerator(
+        nodes=15, 
+        edges=25,
+        task_cost={
+            SimpleTaskGraph.Cost.LOW: 300,
+            SimpleTaskGraph.Cost.HIGH: 500,
+        },
+        data_cost={
+            SimpleTaskGraph.Cost.LOW: 300,
+            SimpleTaskGraph.Cost.HIGH: 500,
+        }
+    )
 
-    results = BruteForceOptimizer(samples=10).optimize_iter(
+    results = BruteForceOptimizer(samples=5).optimize_iter(
         networks=mother_network.iter_subnetworks(),     # optimize over all subnetworks of the mother network
         task_graph_generator=task_graph_generator,      # task graph generater to generate task graphs for scheduler
         scheduler=HeftScheduler()                       # scheduler to optimize with
     )
 
-
-
     # Visualization stuff - Not necessary for optimization
-    ax1: plt.Axes
-    ax2: plt.Axes
-    ax3: plt.Axes
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 10))
+    ax_cur_network: plt.Axes
+    ax_cur_dag: plt.Axes
+    ax_best_network: plt.Axes
+    ax_score: plt.Axes
 
-    cur_network, scores = None, []
+    fig = plt.figure(figsize=(17, 9))
+    fig.suptitle("Network Optimization")
+
+    gs = GridSpec(nrows=3, ncols=3, hspace=0.4, wspace=0.1) #, figure=fig)
+    ax_score = fig.add_subplot(gs[-1,:])
+    ax_cur_network = fig.add_subplot(gs[:-1,0])
+    ax_cur_dag = fig.add_subplot(gs[:-1,1])
+    ax_best_network = fig.add_subplot(gs[:-1,2])
+
+    scatter = ax_score.scatter([], [])
+
+    cur_network, avg_scores, scores, costs = None, [], [], []
     def update(frame):
-        nonlocal mother_network, ax1, ax2, ax3, cur_network, scores #, queue
-        ax1.clear()
-        ax2.clear()
-        ax3.clear()
-        ax1.set_title("Current Subnetwork")
-        ax2.set_title("Sampled Task Graph")
-        ax3.set_title("Best Subnetwork Found")
+        nonlocal mother_network, ax_cur_network, ax_cur_dag, ax_best_network, cur_network, scores #, queue
         
-        ax1.legend(
+        task_graph: SimpleTaskGraph
+        try:
+            network, score, task_graph, best_network, best_score = next(results)
+        except StopIteration:
+            return 
+
+        if network != cur_network:
+            if scores and cur_network is not None:
+                costs.append(cur_network.cost())
+                avg_scores.append(np.mean(scores))
+
+                scatter.set_offsets(list(zip(costs, avg_scores)))
+                ax_score.set_xlim(min(costs)*0.9, max(costs)*1.1)
+                ax_score.set_ylim(min(avg_scores)*0.9, max(avg_scores)*1.1)
+
+            cur_network, scores = network, []
+        
+        ax_cur_network.clear()
+        ax_cur_dag.clear()
+        ax_best_network.clear()
+        ax_cur_network.set_title("Current Subnetwork")
+        ax_cur_dag.set_title("Sampled Task Graph")
+        ax_best_network.set_title("Best Subnetwork Found")
+        ax_score.set_title("Cost-Score Results")
+        ax_score.set_xlabel("Cost")
+        ax_score.set_ylabel("Score")
+        
+        ax_cur_network.legend(
             handles=[
                 mpatches.Patch(color='#A3BE8C', label='High Speed Connection/Satellite'),
                 mpatches.Patch(color='#88C0D0', label='Low Speed Connection/Satellite'),
@@ -78,27 +120,24 @@ def main():
             ]
         )
 
-        ax2.legend(
+        ax_cur_dag.legend(
             handles=[
                 mpatches.Patch(color='#BF616A', label='High Cost/Data'),
                 mpatches.Patch(color='#EBCB8B', label='Low Cost/Data')
-            ]
+            ],
+            loc="upper left"
         )
 
-        task_graph: SimpleTaskGraph
-        network, score, task_graph, best_network, best_score = next(results)
-        if network != cur_network:
-            cur_network, scores = network, []
-            
         scores.append(score)
-        ax1.set_xlabel(f"Average Score: {np.mean(scores):.2f} ({len(scores)} samples)")
-        ax3.set_xlabel(f"Average Score: {best_score:.2f}")
 
-        mother_network.draw(network.edges, ax=ax1)
+        ax_cur_network.set_xlabel(f"Average Score: {np.mean(scores):.2f} ({len(scores)} samples)")
+        ax_best_network.set_xlabel(f"Average Score: {best_score:.2f}")
+
+        mother_network.draw(network.edges, ax=ax_cur_network)
         if best_network is not None:
-            mother_network.draw(best_network.edges, ax=ax3)
+            mother_network.draw(best_network.edges, ax=ax_best_network)
         if task_graph is not None:
-            task_graph.draw(ax=ax2)
+            task_graph.draw(ax=ax_cur_dag)
 
         
     ani = FuncAnimation(fig, update, interval=0)

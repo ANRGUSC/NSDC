@@ -1,3 +1,4 @@
+from bnet import network
 from itertools import chain, combinations
 from typing import Callable, Dict, List, Optional, Set, Tuple, Generator, Union
 import networkx as nx
@@ -68,6 +69,23 @@ class SimpleNetwork(Network):
     def edges(self) -> List[Tuple[str, str, str]]:
         """List of edges in the network"""
         return list(self._graph.edges)
+
+    def cost(self) -> float:
+        cost = 0.0
+        for node in self._graph.nodes:
+            if node == "__satellite__":
+                continue
+            cost += self.node_speed[self._graph.nodes[node]["speed"]]
+        for edge in self._graph.edges:
+            _, _, key = edge
+            if key == "satellite":
+                cost += self.sat_speed[self._graph.edges[edge]["speed"]]
+            elif key == "radio":
+                cost += self.radio_speed[self._graph.edges[edge]["speed"]]
+            else:
+                cost += self.gray_speed[self._graph.edges[edge]["speed"]]
+        
+        return cost 
 
     def add_node(self, name: str, speed: "SimpleNetwork.Speed", pos: Tuple[float, float]) -> None:
         """Adds a node to the graph
