@@ -1,16 +1,5 @@
 import numpy as np
-import networkx as nx
-import random as ran
-import matplotlib.pyplot as plt
-import heft
 import core as cor
-import Network_N
-import DAG_generator
-import more_itertools
-from itertools import product
-from itertools import combinations
-import all_mother_network_subgraphs
-
 
 # This function receives all possible subgraphs, all possible tasks and all the user inputs
 # and returns the Average Performance and the associated Cost for each subgraph.

@@ -1,8 +1,5 @@
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
-import scipy as py
-import more_itertools as combinatorials
 from itertools import combinations
 
 

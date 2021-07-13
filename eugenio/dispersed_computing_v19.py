@@ -17,9 +17,6 @@ class all_subgraphs: # list with each subgraph of the mother network N and each 
     def total_len(self):
         tot_len=len(self.edge_weight_choices)
         return tot_len
-    
-
-
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -40,14 +37,10 @@ for i in range(1,number_of_tasks+1):
 #-------------------------
 
 
-
 dags=[]
 DAG_matrices=[]
 
 for t in range(0,len(nodes)): # loop for different task graphs of "n" nodes
-    
-    
-
     #Creation of the DAG with the pre-establisehd number of nodes and edges    
     G_dag,dag=DAG_generator.random_dag(nodes[t], edges[t])
     #plt.figure(0)

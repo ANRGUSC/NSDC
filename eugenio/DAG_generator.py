@@ -7,13 +7,8 @@ DAG generation
 https://ipython.org/ipython-doc/stable/parallel/dag_dependencies.html
 
 """
-import numpy as np
 import networkx as nx
 import random as ran
-import matplotlib.pyplot as plt
-import heft
-import core as cor
-import Network_N
 
 #-------------------
 def random_dag(nodes, edges):
