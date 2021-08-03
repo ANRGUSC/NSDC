@@ -186,7 +186,7 @@ for i in range(0,N):
 G,H_list_connectivities=all_mother_network_subgraphs.all_mother_network_subgraphs(N, min_N, Connectivity_Matrix)
 
 
-Average_Performance,Cost_vector =optimization.optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input,Cost_Matrix,DAG_matrices,dags)
+Average_Performance,Cost_vector, temp =optimization.optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input,Cost_Matrix,DAG_matrices,dags)
 
 
     
