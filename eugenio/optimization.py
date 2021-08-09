@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 #import networkx as nx
 #import random as ran
@@ -56,6 +57,7 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
             # Here we fill up the Network_N_matrix with the different bandwiths
             # according to each subgraph edge choice (RF/Gray/Satellite)
             
+            Network_N_matrixb=deepcopy(Network_N_matrix)
             
             edges_=list(H_list[r].edges)
             for j in range(0,len(edges_)):
@@ -63,35 +65,35 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
                 #ONE EDGE
                 if (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 1 ) and (user_input[edges_[j][0]][edges_[j][1]] == 1):#RF
                       
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[0]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]# we make it symmetric
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[0]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]# we make it symmetric
                     
                 elif (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 1 ) and (user_input[edges_[j][0]][edges_[j][1]] == 2):#gray:
             
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[1]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[1]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]
         
                 elif (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 1 ) and (user_input[edges_[j][0]][edges_[j][1]] == 3):#satellite:
         
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[2]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[2]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]
         
                 #TWO EDGES
                 
                 elif (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 2 ) and (user_input[edges_[j][0]][edges_[j][1]] == 4):#RF/gray:
         
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j]]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j]]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]
                 
                 elif (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 2 ) and (user_input[edges_[j][0]][edges_[j][1]] == 5):#RF/satellite:
         
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j] * 2]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j] * 2]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]
                 
                 elif (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 2 ) and (user_input[edges_[j][0]][edges_[j][1]] == 6):#gray/satellite:
         
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j] + 1]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j] + 1]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]
                 
                 
                 #THREE EDGES
@@ -99,8 +101,8 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
             
                 elif (Connectivity_Matrix[edges_[j][0]][edges_[j][1]] == 3 ):#RF/gray/satellite:
         
-                    Network_N_matrix[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j]]
-                    Network_N_matrix[edges_[j][1]][edges_[j][0]]=Network_N_matrix[edges_[j][0]][edges_[j][1]]
+                    Network_N_matrixb[edges_[j][0]][edges_[j][1]]=bandwith_table[temp_H_list[r].edge_weight_choices[j]]
+                    Network_N_matrixb[edges_[j][1]][edges_[j][0]]=Network_N_matrixb[edges_[j][0]][edges_[j][1]]
                 
             
             
@@ -125,7 +127,7 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
                 
                 def compcost(job, agent):
                     
-                    comp_cost=DAG_matrix[job][job] / Network_N_matrix[agent][agent]
+                    comp_cost=DAG_matrix[job][job] / Network_N_matrixb[agent][agent]
                     
                     return comp_cost
                 
@@ -138,7 +140,7 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
                         return 0
                     else:
                         
-                        comm_cost = DAG_matrix[ni][nj] / Network_N_matrix[agent_A][agent_B] 
+                        comm_cost = DAG_matrix[ni][nj] / Network_N_matrixb[agent_A][agent_B] 
                         return comm_cost
                 
                 #---------  
