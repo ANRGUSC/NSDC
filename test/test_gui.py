@@ -16,7 +16,7 @@ import argparse
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--samples", type=int)
+    parser.add_argument("-s", "--samples", type=int, required=True)
     return parser
 
 def main():
