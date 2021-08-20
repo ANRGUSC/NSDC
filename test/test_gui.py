@@ -66,7 +66,7 @@ def main():
     )
     # Add 5 nodes with specified compute speeds and positions
     mother_network.add_node(0, SimpleNetwork.Speed.NONE, pos=(0, 0.25))
-    mother_network.add_node(1, SimpleNetwork.Speed.LOW, pos=(0.35, 0.4))
+    mother_network.add_node(1, SimpleNetwork.Speed.LOW, pos=(0.35, 0.3))
     mother_network.add_node(2, SimpleNetwork.Speed.LOW, pos=(0.4, 0.15))
     mother_network.add_node(3, SimpleNetwork.Speed.HIGH, pos=(0.8, 0.3))
     mother_network.add_node(4, SimpleNetwork.Speed.HIGH, pos=(0.6, 0.6))
@@ -131,7 +131,7 @@ def main():
         samples=args.samples,
         networks=mother_network.iter_subnetworks(),     # optimize over all subnetworks of the mother network
         task_graph_generator=task_graph_generator,      # task graph generater to generate task graphs for scheduler
-        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + 2 * risk - makespan / 10,
+        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + 2 * risk + makespan/50,
         makespan=scheduler.schedule,
         deploy_cost=lambda network, _: network.cost(),
         risk=lambda network, _: network.risk()
@@ -142,22 +142,36 @@ def main():
     ax_cur_dag: plt.Axes
     ax_best_network: plt.Axes
     ax_makespan: plt.Axes
+    ax_no_risk: plt.Axes
+    ax_any_risk: plt.Axes
 
     fig = plt.figure(figsize=(17, 9))
+    plt.set_cmap('coolwarm')
     fig.suptitle(f"Network Optimization (Brute Force)")
  
-    gs = GridSpec(nrows=3, ncols=3, hspace=0.4, wspace=0.1) #, figure=fig)
-    ax_makespan = fig.add_subplot(gs[-1,:])
+    gs = GridSpec(nrows=2, ncols=3, hspace=0.4, wspace=0.1) #, figure=fig)
     ax_cur_network = fig.add_subplot(gs[:-1,0])
     ax_cur_dag = fig.add_subplot(gs[:-1,1])
     ax_best_network = fig.add_subplot(gs[:-1,2])
+    ax_makespan = fig.add_subplot(gs[-1:,0])
+    ax_no_risk = fig.add_subplot(gs[-1:,1])
+    ax_any_risk = fig.add_subplot(gs[-1:,2])
 
-    scatter = ax_makespan.scatter([], [], cmap="jet")
+    scatter = ax_makespan.scatter([], []) 
+    cbar = fig.colorbar(scatter, ax=ax_makespan, ticks=[0, 1])
+    cbar.ax.set_yticklabels(['low', 'high'])
+
+
 
     cur_network, avg_makespans, makespans, deploy_costs, risks, costs = None, [], [], [], [], []
-    best_network, best_cost = None, np.inf
+    best_network, best_metrics = None, {}
+    best_any_risk_network, best_any_risk_metrics = None, {}
+    best_no_risk_network, best_no_risk_metrics = None, {}
     def update(frame):
-        nonlocal mother_network, ax_cur_network, ax_cur_dag, ax_best_network, cur_network, makespans, best_cost, best_network
+        nonlocal mother_network, ax_cur_network, ax_cur_dag, ax_best_network
+        nonlocal cur_network, makespans, best_metrics, best_network
+        nonlocal best_any_risk_network, best_any_risk_metrics
+        nonlocal best_no_risk_network, best_no_risk_metrics
         
         task_graph: SimpleTaskGraph
         try:
@@ -172,39 +186,50 @@ def main():
                 risks.append(metrics["risk"])
                 avg_makespans.append(np.mean(makespans))
                 costs.append(metrics["cost"])
+                metrics["avg_makespan"] = avg_makespans[-1]
 
-                if costs[-1] < best_cost:
-                    best_network, best_cost = network, costs[-1]
+                if costs[-1] < best_metrics.get("cost", np.inf):
+                    best_network, best_metrics = network, metrics
+                if risks[-1] == 0:
+                    if avg_makespans[-1] < best_no_risk_metrics.get("avg_makespan", np.inf):
+                        best_no_risk_network, best_no_risk_metrics = network, metrics
+                if avg_makespans[-1] < best_any_risk_metrics.get("avg_makespan", np.inf):
+                    best_any_risk_network, best_any_risk_metrics = network, metrics
 
-                scatter.set_offsets(list(zip(deploy_costs, avg_makespans)))
+                scatter.set_offsets(list(zip(deploy_costs, np.log10(avg_makespans))))
                 scatter.set_edgecolors(cm.coolwarm(np.array(risks) / max_risk))
                 scatter.set_facecolors(cm.coolwarm(np.array(risks) / max_risk))
                 ax_makespan.set_xlim(min(deploy_costs)*0.9, max(deploy_costs)*1.1)
-                ax_makespan.set_ylim(min(avg_makespans)*0.9, max(avg_makespans)*1.1)
+                ax_makespan.set_ylim(min(np.log10(avg_makespans))*0.9, max(np.log10(avg_makespans))*1.1)
 
             cur_network, makespans = network, []
         
         ax_cur_network.clear()
         ax_cur_dag.clear()
         ax_best_network.clear()
+        ax_no_risk.clear()
+        ax_any_risk.clear()
+        
         ax_cur_network.set_title("Current Subnetwork")
         ax_cur_dag.set_title("Sampled Task Graph")
-        ax_best_network.set_title("Best Subnetwork Found")
+        ax_best_network.set_title("Best Subnetwork Found (Cost Function)")
+        ax_any_risk.set_title("Best Subnetwork Found (Any Deploy-Cost/Risk)")
+        ax_no_risk.set_title("Best Subnetwork Found (No Risk/Any Deploy-Cost)")
         ax_makespan.set_title("Deploy-Cost/Makespan/Risk Results")
         ax_makespan.set_xlabel("Deploy-Cost")
-        ax_makespan.set_ylabel("Makespan")
+        ax_makespan.set_ylabel("Makespan (log-scale)")
         
         ax_cur_network.legend(handles=[  
             Line2D( # nosat
-                [0], [0], marker='o', color='w', label='No Satellite Connection',
-                markerfacecolor='gray', markersize=10
+                [0], [0], marker='o', color='w', label='No Satellite',
+                markerfacecolor='#BF616A', markersize=10
             ),
             Line2D( # low sat
-                [0], [0], marker='o', color='w', label='No Satellite Connection',
+                [0], [0], marker='o', color='w', label='Low Speed Satellite',
                 markerfacecolor='#88C0D0', markersize=10
             ),
             Line2D( # high sat
-                [0], [0], marker='o', color='w', label='No Satellite Connection',
+                [0], [0], marker='o', color='w', label='High Speed Satellite',
                 markerfacecolor='#A3BE8C', markersize=10
             ),
             Line2D( # low radio
@@ -234,13 +259,34 @@ def main():
         makespans.append(makespan)
 
         ax_cur_network.set_xlabel(f"Average makespan: {np.mean(makespans):.2f} ({len(makespans)} samples)")
-        ax_best_network.set_xlabel(f"Cost: {best_cost:.2f}")
+        ax_best_network.set_xlabel(
+            f"Deploy Cost: {best_metrics.get('deploy_cost', np.inf):.2f}, " +
+            f"Risk: {best_metrics.get('risk', np.inf):.2f}, " +
+            f"Makepsan: {best_metrics.get('avg_makespan', np.inf):.2f}" +
+            f"\nCost: {best_metrics.get('cost', np.inf):.2f}"
+        )
+        ax_no_risk.set_xlabel(
+            f"Deploy Cost: {best_no_risk_metrics.get('deploy_cost', np.inf):.2f}, " +
+            f"Risk: {best_no_risk_metrics.get('risk', np.inf):.2f}, " +
+            f"Makepsan: {best_no_risk_metrics.get('avg_makespan', np.inf):.2f}" +
+            f"\nCost: {best_no_risk_metrics.get('cost', np.inf):.2f}"
+        )
+        ax_any_risk.set_xlabel(
+            f"Deploy Cost: {best_any_risk_metrics.get('deploy_cost', np.inf):.2f}, " +
+            f"Risk: {best_any_risk_metrics.get('risk', np.inf):.2f}, " +
+            f"Makepsan: {best_any_risk_metrics.get('avg_makespan', np.inf):.2f}" +
+            f"\nCost: {best_any_risk_metrics.get('cost', np.inf):.2f}"
+        )
 
         mother_network.draw(network.edges, ax=ax_cur_network)
         if best_network is not None:
             mother_network.draw(best_network.edges, ax=ax_best_network)
         if task_graph is not None:
             task_graph.draw(ax=ax_cur_dag)
+        if best_any_risk_network is not None:
+            mother_network.draw(best_any_risk_network.edges, ax=ax_any_risk)
+        if best_no_risk_network is not None:
+            mother_network.draw(best_no_risk_network.edges, ax=ax_no_risk)
 
         
     ani = FuncAnimation(fig, update, interval=0)
