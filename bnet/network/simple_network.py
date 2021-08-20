@@ -1,4 +1,3 @@
-from bnet import network
 from itertools import chain, combinations
 from typing import Callable, Dict, List, Optional, Set, Tuple, Generator, Union
 import networkx as nx
@@ -59,6 +58,7 @@ class SimpleNetwork(Network):
             speed: gray_speed.get(speed, speed.value)
             for speed in list(SimpleNetwork.Speed)
         }
+        self.add_node("__satellite__", SimpleNetwork.Speed.NONE, pos=(0, 0))
 
     @property
     def nodes(self) -> List[str]:
@@ -69,6 +69,9 @@ class SimpleNetwork(Network):
     def edges(self) -> List[Tuple[str, str, str]]:
         """List of edges in the network"""
         return list(self._graph.edges)
+
+    def get_pos(self, node: str) -> Tuple[float, float]:
+        return self._graph.nodes[node]["pos"]
 
     def cost(self) -> float:
         cost = 0.0
@@ -87,6 +90,14 @@ class SimpleNetwork(Network):
         
         return cost 
 
+    def risk(self) -> float:
+        risk = 0.0
+        for edge in self._graph.edges:
+            _, _, key = edge
+            if key == "gray":
+                risk += self.gray_speed[self._graph.edges[edge]["speed"]]
+        return risk 
+
     def add_node(self, name: str, speed: "SimpleNetwork.Speed", pos: Tuple[float, float]) -> None:
         """Adds a node to the graph
 
@@ -97,7 +108,7 @@ class SimpleNetwork(Network):
         """
         if not all(map(lambda x: x >= 0 and x <= 1, pos)):
             raise ValueError("Position must be in unit hypercube")
-        self._graph.add_node(name, speed=speed, pos=pos)
+        self._graph.add_node(name, speed=speed, pos=list(pos))
 
     def remove_node(self, name: str) -> None:
         """Removes a node from the network
@@ -279,7 +290,7 @@ class SimpleNetwork(Network):
             SimpleNetwork: Network with a subset of the edges.
         """
         edges = list(self._graph.edges)
-        for subedges in chain.from_iterable(combinations(edges, r) for r in range(min_size, len(edges) + 1)):
+        for subedges in chain.from_iterable(combinations(edges, r) for r in list(range(min_size, len(edges) + 1))[::-1]):
             network = SimpleNetwork(self.node_speed, self.radio_speed, self.sat_speed, self.gray_speed)
             network._graph = self._graph.edge_subgraph(subedges)
             yield network 
@@ -424,7 +435,6 @@ class SimpleNetwork(Network):
         rand_pos_speed = lambda: random.choice([SimpleNetwork.Speed.LOW, SimpleNetwork.Speed.HIGH])
 
         # Add satellite node 
-        network.add_node("__satellite__", SimpleNetwork.Speed.NONE, pos=(0, 0))
         for node, p in pos.items():
             network.add_node(node, speed=rand_pos_speed(), pos=p)
             network.add_edge(node, "__satellite__", rand_speed(), key="satellite")
@@ -434,7 +444,7 @@ class SimpleNetwork(Network):
             network.add_edge(src, dst, rand_pos_speed(), key="radio")
 
         # Add gray network edges 
-        gray_threshold = rand()
+        gray_threshold = 0.5 # rand()
         for src, dst in combinations(graph.nodes, r=2):
             if pos[src][0] < gray_threshold and pos[dst][0] < gray_threshold:
                 network.add_edge(src, dst, rand_pos_speed(), key="gray")
