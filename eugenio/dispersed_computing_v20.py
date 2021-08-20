@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import DAG_generator
 import all_mother_network_subgraphs
 import optimization
-
+from simulated_annealing import sa
+import sa_v1
 
 class all_subgraphs: # list with each subgraph of the mother network N and each possible 
                      # connectivity choice of edges
@@ -17,6 +18,9 @@ class all_subgraphs: # list with each subgraph of the mother network N and each 
     def total_len(self):
         tot_len=len(self.edge_weight_choices)
         return tot_len
+    
+
+
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -37,10 +41,14 @@ for i in range(1,number_of_tasks+1):
 #-------------------------
 
 
+
 dags=[]
 DAG_matrices=[]
 
 for t in range(0,len(nodes)): # loop for different task graphs of "n" nodes
+    
+    
+
     #Creation of the DAG with the pre-establisehd number of nodes and edges    
     G_dag,dag=DAG_generator.random_dag(nodes[t], edges[t])
     #plt.figure(0)
@@ -48,7 +56,7 @@ for t in range(0,len(nodes)): # loop for different task graphs of "n" nodes
     #--------   
     
     
-    # Here we create a matrix that collects more info (time to finish eac job/amount 
+    # Here we create a matrix that collects more info (time to finish each job and amount 
     # of data to be transferred between jobs) from the user:
         
     DAG_matrix=np.zeros((len(dag),len(dag)))
@@ -91,7 +99,7 @@ min_N=3 # minimum number of nodes for future subgraphs
 
 # This is more DATA that eventually might be input by the user:
 #-------------
-# We define the agent's speed 
+# We define the agent's speed (node's speed)
 Network_N_matrix=np.zeros((N,N))
 
 for i in range(0,N):
@@ -119,7 +127,7 @@ for i in range(0,N):
 #--------------------------------------------------------------------
     
 # ----------------
-# Here we generate the different possible subgraphs of each Mother Network N
+# Here we generate the different possible subgraphs of the Mother Network N
 # taking in account 3 different connectivity types between nodes (RF, gray
 # network and satellite). The Connectivity_Matrix is the matrix where the user
 # specifies what type of edges (RF, gray, satellite) and how many of them we have 
@@ -145,6 +153,7 @@ bandwith_table=[2,4,6] #[data/sec]
 
 # The "user_input" matrix contains the specific amount of edges per pair of nodes:
 user_input=np.zeros((N,N))
+
 # USER INPUT Matrix PATTERN:
 # (i,j)=1 --> RF edge
 # (i,j)=2 --> gray edge
@@ -192,14 +201,13 @@ for i in range(0,N):
 
 
 # ---------------- Here basically comes the two big "for" loops that calculates the average
-# performance time/cost to compute all the tasks in each subgraph (extracted 
-# from the Mother Network) --------------------------
+# performance time/cost to compute all the tasks in each Mother Network subgraph ---------
 
 
 G,H_list_connectivities=all_mother_network_subgraphs.all_mother_network_subgraphs(N, min_N, Connectivity_Matrix)
 
 
-Average_Performance,Cost_vector, temp =optimization.optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input,Cost_Matrix,DAG_matrices,dags)
+Average_Performance,Cost_vector,all_H_list=optimization.optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input,Cost_Matrix,DAG_matrices,dags)
 
 
 #--------------------------------------------------------------------
@@ -225,9 +233,40 @@ plt.grid(True)
 
 
 
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+#---------------------
+# Simulated Annealing:
+#---------------------
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 
+f=len(all_H_list)
+bounds=[1,f-1]
+x0=ran.randrange(f)
 
+opt = sa_v1.minimize(Average_Performance, x0,bounds, opt_mode='continuous', step_max=1000, t_max=1, t_min=0)
 
+opt.results()
+opt.best_state
 
+sa_vector=np.zeros((f,1))
+sa_vector[opt.best_state][0]=1
 
+#-------- Plots ------- :
+#----------------------
+plt.figure(2)
+plt.plot(Average_Performance)
+plt.plot(sa_vector)
+#plt.plot(np.arange(len(H_list[r])),Average_Performance,label='Performance')
+plt.legend()
+#plt.plot(np.arange(len(H_list)),Cost,label='Cost')
+#plt.legend()
+plt.xlabel('Subgraph')
+plt.ylabel('Average Performance [time units]')
+plt.grid(True)

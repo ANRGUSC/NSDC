@@ -1,3 +1,7 @@
+# This script creates the search space for the "simulated annelaing" software
+
+
+    
 from copy import deepcopy
 import numpy as np
 #import networkx as nx
@@ -13,8 +17,6 @@ import core as cor
 #import all_mother_network_subgraphs
 
 
-# This function receives all possible subgraphs, all possible tasks and all the user inputs
-# and returns the Average Performance and the associated Cost for each subgraph.
 
 class all_subgraphs: # list with each subgraph of the mother network N and each possible 
                      # connectivity choice of edges
@@ -27,12 +29,26 @@ class all_subgraphs: # list with each subgraph of the mother network N and each 
         tot_len=len(self.edge_weight_choices)
         return tot_len
     
+
+
+"""
+    def __init__(self,H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input): 
+        self.H_list_connectivities=H_list_connectivities
+        self.Connectivity_Matrix=Connectivity_Matrix
+        self.Network_N_matrix=Network_N_matrix
+        self.nodes=nodes
+        self.bandwith_table=bandwith_table
+        self.user_input=user_input
+""" 
     
-def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input,Cost_Matrix,DAG_matrices,dags):
     
-    Average_Performance=[]
-    Cost_vector=[]
+def search_space(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,nodes,bandwith_table,user_input):
     
+    
+
+
+    
+    search_space_choices=[]
     
     number_of_subgraphs=[]
     temp_H_list=[]
@@ -108,68 +124,7 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
             
             
             
+            search_space_choices.append(Network_N_matrixb)
+
             
-            
-            #--------
-            # HEFT calculation:
-            #-----------------
-            
-            Performance=[]
-        
-        
-            
-            
-            for t in range(0,len(nodes)): # loop for different task graphs of "n" nodes
-                
-        
-                # Functions used by the HEFT script:  
-                #----------------------------------
-                
-                def compcost(job, agent):
-                    
-                    comp_cost=DAG_matrix[job][job] / Network_N_matrixb[agent][agent]
-                    
-                    return comp_cost
-                
-                
-                def commcost(ni, nj, agent_A, agent_B):
-                
-                
-                
-                    if(agent_A == agent_B):
-                        return 0
-                    else:
-                        
-                        comm_cost = DAG_matrix[ni][nj] / Network_N_matrixb[agent_A][agent_B] 
-                        return comm_cost
-                
-                #---------  
-                DAG_matrix=DAG_matrices[t]
-                orders, jobson = cor.schedule(dags[t], H_list[r], compcost, commcost)
-                #for eachP in sorted(orders):
-                 #   print(eachP,orders[eachP])
-                #print(jobson)
-                
-                
-                # Performance and Cost Calculation: P(N,T) and C(N)
-                #----------------------------------------------------
-                
-                #Performance:
-                end_times=[]
-                for i in range(0,len(orders)):
-                    for j in range(0,len(orders[list(H_list[r])[i]])):
-                        end_times.append(orders[list(H_list[r])[i]][j][2])
-         
-           
-                
-                Performance.append(max(end_times)) # total time to finish all the jobs
-        
-            Average_Performance.append(np.mean(Performance))
-            #subgraph_nodes=list(H_list[r])
-            #for i in range(0,lensub):
-            temp_cost=0    
-            for n in H_list[r]:
-                temp_cost+=Cost_Matrix[n][n]
-            Cost_vector.append(temp_cost)   
-            
-    return Average_Performance, Cost_vector, temp_H_list
+    return search_space_choices
