@@ -65,9 +65,9 @@ def main():
         }
     )
     # Add 5 nodes with specified compute speeds and positions
-    mother_network.add_node(0, SimpleNetwork.Speed.NONE, pos=(0.2, 0.2))
-    mother_network.add_node(1, SimpleNetwork.Speed.LOW, pos=(0.2, 0.4))
-    mother_network.add_node(2, SimpleNetwork.Speed.LOW, pos=(0.3, 0.15))
+    mother_network.add_node(0, SimpleNetwork.Speed.NONE, pos=(0, 0.25))
+    mother_network.add_node(1, SimpleNetwork.Speed.LOW, pos=(0.35, 0.4))
+    mother_network.add_node(2, SimpleNetwork.Speed.LOW, pos=(0.4, 0.15))
     mother_network.add_node(3, SimpleNetwork.Speed.HIGH, pos=(0.8, 0.3))
     mother_network.add_node(4, SimpleNetwork.Speed.HIGH, pos=(0.6, 0.6))
 
@@ -131,7 +131,7 @@ def main():
         samples=args.samples,
         networks=mother_network.iter_subnetworks(),     # optimize over all subnetworks of the mother network
         task_graph_generator=task_graph_generator,      # task graph generater to generate task graphs for scheduler
-        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + risk - makespan / 100,
+        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + 2 * risk - makespan / 10,
         makespan=scheduler.schedule,
         deploy_cost=lambda network, _: network.cost(),
         risk=lambda network, _: network.risk()
