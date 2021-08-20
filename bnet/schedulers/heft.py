@@ -9,7 +9,7 @@ class HeftScheduler(Scheduler):
     def __init__(self) -> None:
         super().__init__()
 
-    def schedule(self, task_graph: TaskGraph, network: Network) -> float:
+    def schedule(self, network: Network, task_graph: TaskGraph) -> float:
         dag = task_graph.to_networkx()
         comp = task_graph.computation_matrix(network)
         comm = network.communication_matrix()

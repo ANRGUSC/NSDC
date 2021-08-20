@@ -6,6 +6,6 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def schedule(self, task_graph: TaskGraph, network: Network) -> float:
+    def schedule(self, network: Network, task_graph: TaskGraph) -> float:
         pass 
 
