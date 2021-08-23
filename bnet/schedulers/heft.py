@@ -12,7 +12,7 @@ class HeftScheduler(Scheduler):
     def schedule(self, network: Network, task_graph: TaskGraph) -> float:
         dag = task_graph.to_networkx()
         comp = task_graph.computation_matrix(network)
-        comm = network.communication_matrix()
+        comm = network.bandwidth_matrix()
 
         # Add dummy source and destination nodes to task graph 
         comp = comp.append(
@@ -40,7 +40,6 @@ class HeftScheduler(Scheduler):
             nx.get_edge_attributes(dag, "data"), 
             name="weight"
         )
-
 
         proc_sched, task_sched, dict_sched = schedule_dag(
             nx.relabel_nodes(dag, task_relabel),
