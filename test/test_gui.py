@@ -24,35 +24,14 @@ def main():
     args = parser.parse_args()
 
     ## MOTHER NETWORK ##
-    # # Generate Random network
-    # mother_network = SimpleNetwork.random(
-    #     num_nodes=5,
-    #     node_speed={
-    #         SimpleNetwork.Speed.LOW: 50,
-    #         SimpleNetwork.Speed.HIGH: 100,
-    #     },
-    #     sat_speed={
-    #         SimpleNetwork.Speed.LOW: 5,
-    #         SimpleNetwork.Speed.HIGH: 10,
-    #     },
-    #     radio_speed={
-    #         SimpleNetwork.Speed.LOW: 2,
-    #         SimpleNetwork.Speed.HIGH: 4,
-    #     },
-    #     gray_speed={
-    #         SimpleNetwork.Speed.LOW: 10,
-    #         SimpleNetwork.Speed.HIGH: 20,
-    #     }
-    # )
-
     # Construct Network
     mother_network = SimpleNetwork(
         node_speed={
-            SimpleNetwork.Speed.LOW: 50,
+            SimpleNetwork.Speed.LOW: 10,        # Node speed, a node with speed s computes a task with size t in n/s seconds
             SimpleNetwork.Speed.HIGH: 100,
         },
         sat_speed={
-            SimpleNetwork.Speed.LOW: 5,
+            SimpleNetwork.Speed.LOW: 5,         # Satellite speed, an edge with speed (trasnfer rate) s transmits data of size d between two nodes in s/d seconds 
             SimpleNetwork.Speed.HIGH: 10,
         },
         radio_speed={
@@ -60,38 +39,36 @@ def main():
             SimpleNetwork.Speed.HIGH: 4,
         },
         gray_speed={
-            SimpleNetwork.Speed.LOW: 10,
-            SimpleNetwork.Speed.HIGH: 20,
+            SimpleNetwork.Speed.LOW: 100,
+            SimpleNetwork.Speed.HIGH: 200,
         }
     )
     # Add 5 nodes with specified compute speeds and positions
-    mother_network.add_node(0, SimpleNetwork.Speed.NONE, pos=(0, 0.25))
+    mother_network.add_node(0, SimpleNetwork.Speed.LOW, pos=(0, 0.25))
     mother_network.add_node(1, SimpleNetwork.Speed.LOW, pos=(0.35, 0.3))
-    mother_network.add_node(2, SimpleNetwork.Speed.LOW, pos=(0.4, 0.15))
+    mother_network.add_node(2, SimpleNetwork.Speed.HIGH, pos=(0.4, 0.15))
     mother_network.add_node(3, SimpleNetwork.Speed.HIGH, pos=(0.8, 0.3))
     mother_network.add_node(4, SimpleNetwork.Speed.HIGH, pos=(0.6, 0.6))
 
     # Add gray network edges
-    mother_network.add_gray_edge(2, 3, SimpleNetwork.Speed.LOW)
+    mother_network.add_gray_edge(2, 3, SimpleNetwork.Speed.HIGH)
     mother_network.add_gray_edge(3, 4, SimpleNetwork.Speed.HIGH)
     mother_network.add_gray_edge(2, 4, SimpleNetwork.Speed.LOW)
 
     # Add radio network edges
     mother_network.add_radio_edge(1, 0, SimpleNetwork.Speed.HIGH)
     mother_network.add_radio_edge(2, 1, SimpleNetwork.Speed.HIGH)
-    mother_network.add_radio_edge(2, 0, SimpleNetwork.Speed.HIGH)
+    mother_network.add_radio_edge(2, 0, SimpleNetwork.Speed.LOW)
     mother_network.add_radio_edge(2, 3, SimpleNetwork.Speed.LOW)
     mother_network.add_radio_edge(3, 4, SimpleNetwork.Speed.LOW)
     mother_network.add_radio_edge(1, 4, SimpleNetwork.Speed.LOW)
 
+    # Add satellite edges
     mother_network.add_satellite_edge(1, SimpleNetwork.Speed.LOW)
     mother_network.add_satellite_edge(4, SimpleNetwork.Speed.HIGH)
     mother_network.add_satellite_edge(2, SimpleNetwork.Speed.HIGH)
 
-    max_risk = sum(
-        mother_network.gray_speed[mother_network.get_gray_edge(src, dst)] 
-        for src, dst, key in mother_network.edges if key == "gray"
-    )
+
 
     # Create a task graph generator so the optimizer can sample task graphs
     # task_graph_generator = SimpleTaskGraph.random_generator(
@@ -131,7 +108,7 @@ def main():
         samples=args.samples,
         networks=mother_network.iter_subnetworks(),     # optimize over all subnetworks of the mother network
         task_graph_generator=task_graph_generator,      # task graph generater to generate task graphs for scheduler
-        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + 2 * risk + makespan/50,
+        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + 20 * risk + makespan / 10,
         makespan=scheduler.schedule,
         deploy_cost=lambda network, _: network.cost(),
         risk=lambda network, _: network.risk()
@@ -159,42 +136,41 @@ def main():
 
     scatter = ax_makespan.scatter([], []) 
     cbar = fig.colorbar(scatter, ax=ax_makespan, ticks=[0, 1])
-    cbar.ax.set_yticklabels(['low', 'high'])
+    cbar.ax.set_yticklabels(["low risk", "high risk"])
 
+    max_risk = sum(key=="gray" for _, _, key in mother_network.edges)
 
-
-    cur_network, avg_makespans, makespans, deploy_costs, risks, costs = None, [], [], [], [], []
+    cur_network, cur_metrics, avg_makespans, makespans, deploy_costs, risks, costs = None, {}, [], [], [], [], []
     best_network, best_metrics = None, {}
     best_any_risk_network, best_any_risk_metrics = None, {}
     best_no_risk_network, best_no_risk_metrics = None, {}
     def update(frame):
         nonlocal mother_network, ax_cur_network, ax_cur_dag, ax_best_network
-        nonlocal cur_network, makespans, best_metrics, best_network
+        nonlocal cur_network, cur_metrics, makespans, best_metrics, best_network
         nonlocal best_any_risk_network, best_any_risk_metrics
         nonlocal best_no_risk_network, best_no_risk_metrics
         
         task_graph: SimpleTaskGraph
         try:
-            network, metrics, task_graph, _, _ = next(results)
-            makespan = metrics["makespan"]
+            network, _metrics, task_graph, _, _ = next(results)
         except StopIteration:
             return 
 
         if network != cur_network:
             if makespans and cur_network is not None:
-                deploy_costs.append(metrics["deploy_cost"])
-                risks.append(metrics["risk"])
+                deploy_costs.append(cur_metrics["deploy_cost"])
+                risks.append(cur_metrics["risk"])
                 avg_makespans.append(np.mean(makespans))
-                costs.append(metrics["cost"])
-                metrics["avg_makespan"] = avg_makespans[-1]
+                costs.append(cur_metrics["cost"])
+                cur_metrics["avg_makespan"] = avg_makespans[-1]
 
                 if costs[-1] < best_metrics.get("cost", np.inf):
-                    best_network, best_metrics = network, metrics
+                    best_network, best_metrics = cur_network, cur_metrics
                 if risks[-1] == 0:
                     if avg_makespans[-1] < best_no_risk_metrics.get("avg_makespan", np.inf):
-                        best_no_risk_network, best_no_risk_metrics = network, metrics
+                        best_no_risk_network, best_no_risk_metrics = cur_network, cur_metrics
                 if avg_makespans[-1] < best_any_risk_metrics.get("avg_makespan", np.inf):
-                    best_any_risk_network, best_any_risk_metrics = network, metrics
+                    best_any_risk_network, best_any_risk_metrics = cur_network, cur_metrics
 
                 scatter.set_offsets(list(zip(deploy_costs, np.log10(avg_makespans))))
                 scatter.set_edgecolors(cm.coolwarm(np.array(risks) / max_risk))
@@ -202,7 +178,8 @@ def main():
                 ax_makespan.set_xlim(min(deploy_costs)*0.9, max(deploy_costs)*1.1)
                 ax_makespan.set_ylim(min(np.log10(avg_makespans))*0.9, max(np.log10(avg_makespans))*1.1)
 
-            cur_network, makespans = network, []
+            cur_network, cur_metrics, makespans = network, _metrics, []
+
         
         ax_cur_network.clear()
         ax_cur_dag.clear()
@@ -256,7 +233,7 @@ def main():
             loc="upper left"
         )
 
-        makespans.append(makespan)
+        makespans.append(_metrics["makespan"])
 
         ax_cur_network.set_xlabel(f"Average makespan: {np.mean(makespans):.2f} ({len(makespans)} samples)")
         ax_best_network.set_xlabel(
