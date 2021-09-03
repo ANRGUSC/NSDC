@@ -8,6 +8,8 @@ setup(
     install_requires=[
         "networkx", # 2.5.1
         "numpy", # 1.20.2
+        "pandas",
+        "matplotlib",
         # "heft @ https://github.com/mackncheesiest/heft@master", # commit e263a76
     ]
 )
