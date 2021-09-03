@@ -10,6 +10,7 @@ setup(
         "numpy", # 1.20.2
         "pandas",
         "matplotlib",
+        "pygraphviz",
         "heft @ git+https://github.com/mackncheesiest/heft",
     ]
 )
