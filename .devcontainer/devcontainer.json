@@ -1,0 +1,54 @@
+{
+	"name": "ANRG Codespaces",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"settings": {
+		"go.toolsManagement.checkForUpdates": "local",
+		"go.useLanguageServer": true,
+		"go.gopath": "/go",
+		"go.goroot": "/usr/local/go",
+		"python.pythonPath": "/home/codespace/miniconda3/bin/python",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.formatting.autopep8Path": "/home/codespace/miniconda3/bin/autopep8",
+		// "python.formatting.blackPath": "/home/codespace/miniconda3/bin/black",
+		// "python.formatting.yapfPath": "/home/codespace/miniconda3/bin/yapf",
+		// "python.linting.banditPath": "/home/codespace/miniconda3/bin/bandit",
+		"python.linting.flake8Path": "/home/codespace/miniconda3/bin/flake8",
+		"python.linting.mypyPath": "/home/codespace/miniconda3/bin/mypy",
+		"python.linting.pycodestylePath": "/home/codespace/miniconda3/bin/pycodestyle",
+		"python.linting.pydocstylePath": "/home/codespace/miniconda3/bin/pydocstyle",
+		"python.linting.pylintPath": "/home/codespace/miniconda3/bin/pylint",
+		"lldb.executable": "/usr/bin/lldb",
+		"files.watcherExclude": {
+			"**/target/**": true
+		}
+	},
+	"remoteUser": "codespace",
+	"overrideCommand": false,
+	"mounts": ["source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"],
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt",
+		"seccomp=unconfined",
+		"--privileged",
+		"--init"
+	],
+	
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"GitHub.vscode-pull-request-github",
+		"ms-python.python",
+		"ms-azuretools.vscode-docker",
+		// "spadin.remote-x11-ssh",
+		"spadin.remote-x11"
+	],
+	
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// "oryx build" will automatically install your dependencies and attempt to build your project
+	// "postCreateCommand": "oryx build -p virtualenv_name=.venv --log-file /tmp/oryx-build.log --manifest-dir /tmp || echo 'Could not auto-build. Skipping.'",
+	"postStartCommand": "pip install -e /workspaces/iobt_ns"
+}
