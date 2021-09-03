@@ -10,6 +10,6 @@ setup(
         "numpy", # 1.20.2
         "pandas",
         "matplotlib",
-        # "heft @ https://github.com/mackncheesiest/heft@master", # commit e263a76
+        "heft @ git+https://github.com/mackncheesiest/heft",
     ]
 )
