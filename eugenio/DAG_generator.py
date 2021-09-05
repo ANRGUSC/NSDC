@@ -41,8 +41,8 @@ def random_dag(nodes, edges):
             else:
                 # we closed a loop!
                 G.remove_edge(a,b)
-        if nx.is_weakly_connected(G):
-             disconnected=1
+        #if nx.is_weakly_connected(G):
+        disconnected=1
 
     
     
