@@ -231,14 +231,14 @@ for s in number_of_tasks:
 for i in range(0,len(time_matrix[0])):
     
     plt.figure(1)
-    plt.plot(mother_network_nodes,time_matrix[:,i],label='Number of task graphs: %.2f' %number_of_tasks[i])
+    plt.plot(mother_network_nodes,time_matrix[:,i]/60,label='Number of task graphs: %.2f' %number_of_tasks[i])
     #plt.plot(x, y, label='y = %.2f x + %.2f' %(A, B))
     #plt.plot(np.arange(len(H_list[r])),Average_Performance,label='Performance')
     plt.legend()
     #plt.plot(np.arange(len(H_list)),Cost,label='Cost')
     #plt.legend()
     plt.xlabel('Number of Network Nodes')
-    plt.ylabel('Computation Time [seconds]')
+    plt.ylabel('Computation Time [minutes]')
     plt.title('HEFT computation time vs Network number of nodes vs Number of Task Graphs')
     plt.grid(True)
 
