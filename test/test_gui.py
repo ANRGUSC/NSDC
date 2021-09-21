@@ -12,6 +12,9 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.cm as cm
 from bnet.generators.generator import CycleGenerator
 
+import matplotlib
+matplotlib.use("TkAgg")
+
 import argparse
 
 def get_parser() -> argparse.ArgumentParser:
