@@ -1,4 +1,6 @@
+from abc import abstractmethod
 from itertools import chain, combinations
+import json
 from typing import Callable, Dict, List, Optional, Set, Tuple, Generator, Union
 import networkx as nx
 import numpy as np
@@ -9,6 +11,7 @@ from numpy.random import zipf, rand
 import random
 from .network import Network
 import matplotlib.pyplot as plt
+from networkx.readwrite import json_graph
 
 class SimpleNetwork(Network):
     class Speed(Enum):
