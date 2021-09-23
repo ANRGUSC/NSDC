@@ -121,10 +121,9 @@ def main():
     results = []
     for result in optimizer.optimize_iter():
         results.append(result)
-        print(result is None)
         with atomic_write(str(pickle_path.joinpath("result.pickle")), mode='wb', overwrite=True) as fp:
             fp.write(pickle.dumps(results))
-        time.sleep(0.2)
+        time.sleep(0.1)
 
 if __name__ == "__main__":
     main()
