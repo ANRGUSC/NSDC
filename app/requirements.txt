@@ -35,6 +35,5 @@ six==1.16.0
 tenacity==8.0.1
 toml==0.10.2
 typing-extensions==3.10.0.2
--e git+https://github.com/ANRGUSC/iobt_ns.git@a7a3c427b5c497e104d01919b4c09c9d28ea5276#egg=usc.anrg.bnet
 Werkzeug==2.0.1
 wrapt==1.12.1

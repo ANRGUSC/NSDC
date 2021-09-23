@@ -25,6 +25,12 @@ mother_network: SimpleNetwork = pickle.loads(
     pickle_path.joinpath("mother.pickle").read_bytes()
 )
 
+image_style = {
+    "width": "100%",
+    "object-fit": "cover",
+    # "height": "300px",
+}
+
 def load() -> List[Result]:
     return pickle.loads(pickle_path.joinpath("result.pickle").read_bytes())
 
@@ -63,18 +69,13 @@ def layout():
             ),
             dbc.Row(
                 [ 
-                    dbc.Col(dcc.Graph(id="plot"), xs=8),
-                    dbc.Col(
-                        [
-                            dbc.Row(
-                                dbc.Col(id="chosen_network")
-                            ),
-                            dbc.Row(
-                                dbc.Col(id="chosen_task_graph")
-                            )
-                        ],
-                        xs=4
-                    )
+                    dbc.Col(dcc.Graph(id="plot")),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(id="chosen_network", className="img-responsive", style=image_style),
+                    dbc.Col(id="chosen_task_graph", className="img-responsive", style=image_style),
                 ]
             )
         ],
@@ -126,6 +127,7 @@ def network_callback(n_clicks: int) -> List:
         template="simple_white",
         color_continuous_scale="RdYlBu_r"
     )
+    plot_fig.update_traces(marker=dict(size=12))
 
     # return network, task_graph, best_network, plot_fig
     return plot_fig
@@ -163,4 +165,4 @@ def click_callback(click_data):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server()
