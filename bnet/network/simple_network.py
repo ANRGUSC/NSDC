@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from itertools import chain, combinations
 import json
-from typing import Callable, Dict, List, Optional, Set, Tuple, Generator, Union
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple, Generator, Union
 import networkx as nx
 import numpy as np
 import pandas as pd 
@@ -284,6 +284,11 @@ class SimpleNetwork(Network):
         
         return graph
 
+    def subnetwork(self, subedges: Set) -> "SimpleNetwork":
+        network = SimpleNetwork(self.node_speed, self.radio_speed, self.sat_speed, self.gray_speed)
+        network._graph = self._graph.edge_subgraph(subedges)
+        return network 
+
     def iter_subnetworks(self, min_size: int = 3) -> Generator["SimpleNetwork", None, None]:
         """Iterates over subnetworks of the network
 
@@ -294,11 +299,37 @@ class SimpleNetwork(Network):
         """
         edges = list(self._graph.edges)
         for subedges in chain.from_iterable(combinations(edges, r) for r in list(range(min_size, len(edges) + 1))[::-1]):
-            network = SimpleNetwork(self.node_speed, self.radio_speed, self.sat_speed, self.gray_speed)
-            network._graph = self._graph.edge_subgraph(subedges)
-            yield network 
+            yield self.subnetwork(subedges)
+        
+    def random_neighbor(self, network: Union[Iterable, "SimpleNetwork"]) -> "SimpleNetwork":
+        """Gets a random network of a subnetwork defined by a subset of edges
+        
+        Args:
+            network: subnetwork or et of edges that define the subnetwork \
+                to get a neighbor of
 
-    def draw(self, subedges: Set, ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+        Returns:
+            SimpleNetwork: neighboring subnetwork
+        """
+        subedges = set(network.edges if isinstance(network, SimpleNetwork) else network)
+        edge = random.choice(self.edges)
+        if edge in subedges:
+            return self.subnetwork(subedges.difference({edge}))
+        else:
+            return self.subnetwork(subedges.union({edge}))
+
+    def random_subnetwork(self) -> "SimpleNetwork":
+        return self.subnetwork(
+            random.sample(
+                self.edges, 
+                random.randint(0, len(self.edges))
+            )
+        )
+        
+    def draw(self, 
+             network: Union[Iterable, "SimpleNetwork"], 
+             ax: Optional[plt.Axes] = None) -> Tuple[plt.Figure, plt.Axes]:
+        subedges = set(network.edges if isinstance(network, SimpleNetwork) else network)
         satellite_subedges = {
             a if b == "__satellite__" else b 
             for a, b, key in subedges

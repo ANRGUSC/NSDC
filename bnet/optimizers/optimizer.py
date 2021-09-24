@@ -1,17 +1,13 @@
 from abc import ABC, abstractmethod
-from bnet.task_graph import TaskGraph
-from typing import Any, Optional,  Tuple, Generator
+from typing import Any, Dict, Optional, Generator
 from bnet import Network
-from dataclasses import dataclass
-import pickle 
+from dataclasses import dataclass, field
 
 @dataclass
 class Result(ABC):
-    last_network: Optional[Network] = None
-    last_metrics: Optional[Any] = None
-    last_task_graph: Optional[TaskGraph] = None
-    best_network: Optional[Network] = None
-    best_metrics: Optional[Any] = None
+    network: Network
+    cost: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
 
 class Optimizer(ABC):
