@@ -1,7 +1,9 @@
+import numpy as np
+from bnet.optimizers.simulated_annealing import SimulatedAnnealingOptimizer
+from bnet.optimizers.optimizer import Result
 from bnet.task_graph.eugenio_simple_task_graph_generator import EugenioSimpleTaskGraphGenerator
 from bnet.task_graph import SimpleTaskGraph
 from bnet.network import SimpleNetwork
-from bnet.optimizers import BruteForceOptimizer
 from bnet.schedulers import HeftScheduler
 from bnet.generators.generator import CycleGenerator
 
@@ -104,14 +106,46 @@ def main():
     )
 
     scheduler = HeftScheduler()
-    optimizer = BruteForceOptimizer(
-        samples=args.samples,
-        networks=mother_network.iter_subnetworks(),     # optimize over all subnetworks of the mother network
-        task_graph_generator=task_graph_generator,      # task graph generater to generate task graphs for scheduler
-        cost_func=lambda makespan, deploy_cost, risk: deploy_cost + 20 * risk + makespan / 10,
-        makespan=scheduler.schedule,
-        deploy_cost=lambda network, _: network.cost(),
-        risk=lambda network, _: network.risk()
+    seq = 0
+    def cost_func(network: SimpleNetwork) -> Result:
+        nonlocal seq
+        task_graphs = []
+        makespans = []
+        for i in range(args.samples):
+            try:
+                task_graphs.append(task_graph_generator.generate())
+                makespans.append(scheduler.schedule(network, task_graphs[-1]))
+            except Exception as e:
+                pass 
+
+        makespan = np.inf if not makespans else sum(makespans) / len(makespans)
+        deploy_cost = network.cost()
+        risk = network.risk()
+        seq += 1
+        return Result(
+            network=network,
+            cost=deploy_cost + 20 * risk + makespan / 10,
+            metadata={
+                "task_graphs": task_graphs,
+                "makespans": makespans,
+                "deploy_cost": deploy_cost,
+                "risk": risk,
+                "seq": seq
+            }
+        )
+
+    # optimizer = BruteForceOptimizer(
+    #     networks=mother_network.iter_subnetworks(),
+    #     cost_func=cost_func
+    # )
+
+    optimizer = SimulatedAnnealingOptimizer(
+        mother_network=mother_network,
+        start_network=mother_network.random_subnetwork(),
+        get_neighbor=mother_network.random_neighbor,
+        cost_func=cost_func,
+        n_iterations=1000,
+        initial_temperature=10
     )
 
     pickle_path = homedir.joinpath(".bnet")
@@ -124,6 +158,7 @@ def main():
         with atomic_write(str(pickle_path.joinpath("result.pickle")), mode='wb', overwrite=True) as fp:
             fp.write(pickle.dumps(results))
         time.sleep(0.1)
+        print(result.cost)
 
 if __name__ == "__main__":
     main()
