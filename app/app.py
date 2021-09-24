@@ -1,14 +1,13 @@
 import base64
 from functools import lru_cache
-from bnet.task_graph.task_graph import TaskGraph
-from bnet import task_graph
+
+import numpy as np
 from typing import List, Tuple
 import dash_bootstrap_components as dbc
-from dash import State, Input, Output, Dash, dcc, html, no_update
+from dash import Input, Output, Dash, dcc, html, no_update
 import plotly.express as px
 
 from bnet.network.simple_network import SimpleNetwork
-from bnet.task_graph.simple_task_graph import SimpleTaskGraph
 from bnet.optimizers.optimizer import Result
 
 import pathlib 
@@ -37,7 +36,16 @@ def load() -> List[Result]:
 @lru_cache(maxsize=None)
 def load_metrics(_rand: int = -1) -> Tuple[List[Result], pd.DataFrame]:
     results = load()
-    metrics = pd.DataFrame.from_records([result.last_metrics for result in results])
+    metrics = pd.DataFrame.from_records([
+        {
+            "cost": result.cost, 
+            "makespan": np.mean(result.metadata["makespans"]),
+            "deploy_cost": result.metadata["deploy_cost"],
+            "risk": result.metadata["risk"],
+            "seq": result.metadata["seq"]
+        } 
+        for result in results
+    ])
     return results, metrics
 
 def fig_to_base64(fig: plt.Figure) -> str:
@@ -134,7 +142,7 @@ def network_callback(n_clicks: int) -> List:
 
 @app.callback(
     Output("chosen_network", "children"),
-    Output("chosen_task_graph", "children"),
+    # Output("chosen_task_graph", "children"),
     Input("plot", "clickData")
 )
 def click_callback(click_data):
@@ -151,18 +159,18 @@ def click_callback(click_data):
     ].index[0]
     
     result = results[idx]
-    if result.last_network:
-        fig, _ = mother_network.draw(result.last_network.edges)
+    if result.network:
+        fig, _ = mother_network.draw(result.network.edges)
         network = html.Img(src=fig_to_base64(fig))
         plt.close(fig)
     
-    if result.last_task_graph:
-        fig, _ = result.last_task_graph.draw()
-        task_graph = html.Img(src=fig_to_base64(fig))
-        plt.close(fig)
+    # if result.last_task_graph:
+    #     fig, _ = result.last_task_graph.draw()
+    #     task_graph = html.Img(src=fig_to_base64(fig))
+    #     plt.close(fig)
 
-    return network, task_graph
+    return network #, task_graph
 
 
 if __name__ == "__main__":
-    app.run_server()
+    app.run_server(debug=True)
