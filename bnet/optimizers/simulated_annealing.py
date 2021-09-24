@@ -35,4 +35,5 @@ class SimulatedAnnealingOptimizer(Optimizer):
 
             if diff < 0 or np.random.random() < metropolis: # keep this network
                 cur_result = result
+        yield best_result
             
