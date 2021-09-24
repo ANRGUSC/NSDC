@@ -1,5 +1,7 @@
+import subprocess
 import numpy as np
 from bnet.optimizers.simulated_annealing import SimulatedAnnealingOptimizer
+from bnet.optimizers.brute_force import BruteForceOptimizer
 from bnet.optimizers.optimizer import Result
 from bnet.task_graph.eugenio_simple_task_graph_generator import EugenioSimpleTaskGraphGenerator
 from bnet.task_graph import SimpleTaskGraph
@@ -11,10 +13,8 @@ import argparse
 import dill as pickle 
 import pathlib 
 from atomicwrites import atomic_write
-import time 
 
 thisdir = pathlib.Path(__file__).resolve().parent
-homedir = pathlib.Path.home()
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -106,9 +106,7 @@ def main():
     )
 
     scheduler = HeftScheduler()
-    seq = 0
     def cost_func(network: SimpleNetwork) -> Result:
-        nonlocal seq
         task_graphs = []
         makespans = []
         for i in range(args.samples):
@@ -116,12 +114,11 @@ def main():
                 task_graphs.append(task_graph_generator.generate())
                 makespans.append(scheduler.schedule(network, task_graphs[-1]))
             except Exception as e:
-                pass 
+                print(e) 
 
         makespan = np.inf if not makespans else sum(makespans) / len(makespans)
         deploy_cost = network.cost()
         risk = network.risk()
-        seq += 1
         return Result(
             network=network,
             cost=deploy_cost + 20 * risk + makespan / 10,
@@ -130,35 +127,43 @@ def main():
                 "makespans": makespans,
                 "deploy_cost": deploy_cost,
                 "risk": risk,
-                "seq": seq
             }
         )
 
-    # optimizer = BruteForceOptimizer(
-    #     networks=mother_network.iter_subnetworks(),
-    #     cost_func=cost_func
-    # )
+    bf_optimizer = BruteForceOptimizer(
+        networks=mother_network.iter_subnetworks(),
+        cost_func=cost_func
+    )
 
-    optimizer = SimulatedAnnealingOptimizer(
+    sa_optimizer = SimulatedAnnealingOptimizer(
         mother_network=mother_network,
         start_network=mother_network.random_subnetwork(),
         get_neighbor=mother_network.random_neighbor,
         cost_func=cost_func,
-        n_iterations=1000,
+        n_iterations=100,
         initial_temperature=10
     )
 
-    pickle_path = homedir.joinpath(".bnet")
-    pickle_path.mkdir(exist_ok=True, parents=True)
+    # # Start GUI 
+    proc = subprocess.Popen(["python", str(thisdir.joinpath("app.py"))])
+
+    # Start Optimization    
+    thisdir.joinpath("mother.pickle").write_bytes(pickle.dumps(mother_network))
+    bf_results, sa_results = [], []
+    for i, (bf_result, sa_result) in enumerate(zip(bf_optimizer.optimize_iter(), sa_optimizer.optimize_iter())):
+        bf_result.metadata["seq"] = i
+        sa_result.metadata["seq"] = i
+        bf_results.append(bf_result)
+        sa_results.append(sa_result)
+        with atomic_write(str(thisdir.joinpath("bf_result.pickle")), mode='wb', overwrite=True) as fp:
+            fp.write(pickle.dumps(bf_results))
+        with atomic_write(str(thisdir.joinpath("sa_result.pickle")), mode='wb', overwrite=True) as fp:
+            fp.write(pickle.dumps(sa_results))
+        # print(f"{bf_result.metadata['seq']}: BF={bf_result.cost}, SA={sa_result.cost}")
+
     
-    pickle_path.joinpath("mother.pickle").write_bytes(pickle.dumps(mother_network))
-    results = []
-    for result in optimizer.optimize_iter():
-        results.append(result)
-        with atomic_write(str(pickle_path.joinpath("result.pickle")), mode='wb', overwrite=True) as fp:
-            fp.write(pickle.dumps(results))
-        time.sleep(0.1)
-        print(result.cost)
+    # # Wait so GUI doesn't close
+    proc.wait()
 
 if __name__ == "__main__":
     main()
