@@ -1,5 +1,5 @@
 import numpy as np
-from bnet.optimizers.simulated_annealing import SimulatedAnnealingOptimizer
+from bnet.optimizers.simulated_annealing import ExponentialCool, SimulatedAnnealingOptimizer
 from bnet.optimizers.brute_force import BruteForceOptimizer
 from bnet.optimizers.optimizer import Result
 from bnet.task_graph.eugenio_simple_task_graph_generator import EugenioSimpleTaskGraphGenerator
@@ -34,17 +34,18 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
         network_order = list(range(10, 21, 5)),
         task_graph_order = list(range(10, 21, 5)),
         task_graph_size = list(range(10, 21, 5)),
-        task_graph_initial_temperature = list(range(10, 51, 10)),
 
         task_cost_low = 300,
         task_cost_high = 500,
         data_cost_low = 300,
         data_cost_high = 500,
 
-        optimizer = ["brute_force", "simulated_annealing"],
+        optimizer = "simulated_annealing", # "brute_force"
         max_iterations = 100,
-        scheduler = ["heft"],
-        task_graph_generator = ["simple", "eugenio"],
+        sa_initial_temperature = list(range(10, 51, 10)),
+        sa_base = sorted(np.linspace(0, 1, num=5) + [np.e]),
+        scheduler = "heft",
+        task_graph_generator = "eugenio", # "simple"
     )
 
     _range_variables = {k: v for k, v in VARIABLES.items() if isinstance(v, (list, tuple, set))}
@@ -149,15 +150,22 @@ def main():
                     get_neighbor=mother_network.random_neighbor,
                     cost_func=cost_func,
                     n_iterations=config["max_iterations"],
-                    initial_temperature=config["task_graph_initial_temperature"]
+                    accept=ExponentialCool(
+                        initial_temperature=config["sa_initial_temperature"],
+                        base=config["sa_base"]
+                    )
                 )
 
             with wandb.init(reinit=True, project="iobt_ns", entity="anrg-iobt_ns", config=config) as run:
                 result: Result
+                best_cost: float = np.inf 
                 for i, result in zip(range(config["max_iterations"]), optimizer.optimize_iter()):
+                    if result.cost < best_cost:
+                        best_cost = result.cost 
                     run.log({
                         "iteration": i, 
                         "cost": result.cost, 
+                        "best_cost": best_cost, 
                         "mother_network": codecs.encode(pickle.dumps(mother_network), "base64").decode(),
                         "network": codecs.encode(pickle.dumps(result.network), "base64").decode(),
                         "metadata": codecs.encode(pickle.dumps(result.metadata), "base64").decode(),
