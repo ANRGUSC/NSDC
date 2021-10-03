@@ -127,7 +127,7 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
                 
                 def compcost(job, agent):
                     
-                    comp_cost=DAG_matrix[job][job] / Network_N_matrixb[agent][agent]
+                    comp_cost=DAG_matrix[int(job)][int(job)] / Network_N_matrixb[agent][agent]
                     
                     return comp_cost
                 
@@ -140,7 +140,7 @@ def optimization(H_list_connectivities,Connectivity_Matrix,Network_N_matrix,node
                         return 0
                     else:
                         
-                        comm_cost = DAG_matrix[ni][nj] / Network_N_matrixb[agent_A][agent_B] 
+                        comm_cost = DAG_matrix[int(ni)][int(nj)] / Network_N_matrixb[agent_A][agent_B] 
                         return comm_cost
                 
                 #---------  
