@@ -42,7 +42,7 @@ class ExponentialCool:
 
         With an intial temperature T, the current temperature t_i in round i is T/(i+1).
         Then, the result is accepted if it has lower cost than the current result or with a probability of \
-        base^(-c/t_i).
+        base^(-c/t_i) or 0 if base == 0.
 
         Args:
             cur_round: Current round to get temperature for
@@ -55,7 +55,7 @@ class ExponentialCool:
         """
         cur_temp = self.initial_temperature / float(cur_round + 1)
         cur_diff = candidate_result.cost - cur_result.cost
-        return cur_diff < 0 or np.random.random() < self.base ** (-cur_diff / cur_temp)
+        return cur_diff < 0 or np.random.random() < 0 if self.base == 0 else self.base ** (-cur_diff / cur_temp)
 
 
 class SimulatedAnnealingOptimizer(Optimizer):
