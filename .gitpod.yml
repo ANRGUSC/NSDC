@@ -1,14 +1,8 @@
 image:
   file: .gitpod.Dockerfile
-# ports:
-#   - port: 5900
-#     onOpen: ignore
-#   - port: 6080
-#     onOpen: open-browser
 tasks:
   - name: Install Python Package
-    init: pip install -e ./bnet_package && pip install -r ./requirements.txt && pip install pylint
-
+    init: pip install --upgrade pip && pip install -e ./bnet_package && pip install -r ./requirements.txt && pip install pylint
 vscode:
   extensions:
     - ms-python.python
