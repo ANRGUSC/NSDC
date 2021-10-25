@@ -302,7 +302,7 @@ class SimpleNetwork(Network):
             yield self.subnetwork(subedges)
         
     def random_neighbor(self, network: Union[Iterable, "SimpleNetwork"]) -> "SimpleNetwork":
-        """Gets a random network of a subnetwork defined by a subset of edges
+        """Gets a random neighbor of a subnetwork defined by a subset of edges
         
         Args:
             network: subnetwork or et of edges that define the subnetwork \
@@ -313,6 +313,28 @@ class SimpleNetwork(Network):
         """
         subedges = set(network.edges if isinstance(network, SimpleNetwork) else network)
         edge = random.choice(self.edges)
+        if edge in subedges:
+            return self.subnetwork(subedges.difference({edge}))
+        else:
+            return self.subnetwork(subedges.union({edge}))
+        
+    def random_connected_neighbor(self, network: Union[Iterable, "SimpleNetwork"]) -> "SimpleNetwork":
+        """Gets a random connected neighbor of a subnetwork defined by a subset of edges
+        
+        Args:
+            network: subnetwork or et of edges that define the subnetwork \
+                to get a connected neighbor of
+
+        Returns:
+            SimpleNetwork: neighboring subnetwork
+        """
+        subedges = set(network.edges if isinstance(network, SimpleNetwork) else network)
+        subnodes = {node for (u, v, _) in subedges for node in [u, v]}
+        neighborhood = [
+            (u, v, k) for (u, v, k) in self.edges 
+            if u in subnodes or v in subnodes
+        ]
+        edge = random.choice(neighborhood)
         if edge in subedges:
             return self.subnetwork(subedges.difference({edge}))
         else:
