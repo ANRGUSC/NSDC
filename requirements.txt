@@ -80,7 +80,6 @@ tornado==6.1
 traitlets==5.1.0
 typing-extensions==3.10.0.2
 urllib3==1.26.7
--e git+https://github.com/ANRGUSC/iobt_ns.git@bf69e6f06fd01856364dfb948e406d0ec179ee24#egg=usc.anrg.bnet&subdirectory=bnet_package
 wandb==0.12.2
 wcwidth==0.2.5
 Werkzeug==2.0.1
