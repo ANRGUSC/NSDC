@@ -198,7 +198,6 @@ def main():
                         "network": codecs.encode(pickle.dumps(result.network), "base64").decode(),
                         "metadata": codecs.encode(pickle.dumps(result.metadata), "base64").decode(),
                     }) 
-            return 
 
 
 if __name__ == "__main__":
