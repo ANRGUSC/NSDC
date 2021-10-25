@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from bnet.optimizers.simulated_annealing import ExponentialCool, SimulatedAnnealingOptimizer
 from bnet.optimizers.brute_force import BruteForceOptimizer
@@ -13,12 +14,33 @@ from itertools import product
 import wandb
 import codecs
 
-from typing import Any, Dict, Generator
+from typing import Any, Dict, Generator, Union, List, Tuple, Set
 
+def get_combos(config: Dict[str, Union[List, Tuple, Set, Dict]]):
+    vars = {
+        key: list(
+            value if isinstance(value, (tuple, list, set, dict)) else (
+                value.keys() if isinstance(value, dict) else 
+                [value]
+            )
+        )
+        for key, value in config.items()
+    }
+
+    subconfigs = {key for key, value in config.items() if isinstance(value, dict)}
+    for values in product(*vars.values()):
+        combo = dict(zip(vars.keys(), values))
+        if not subconfigs:
+            yield combo 
+        else:
+            for subconfig in subconfigs:
+                combo.update(config[subconfig][combo[subconfig]])
+            yield from get_combos(combo)
+        
 
 def get_configs() -> Generator[Dict[str, Any], None, None]:
     VARIABLES = dict(
-        runs_per_configuration = 5,
+        runs_per_configuration = 4,
         task_graph_samples = 5,
         task_graph_cycle = True,
 
@@ -31,32 +53,34 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
         gray_speed_low = 100,
         gray_speed_high = 200,
 
-        network_order = list(range(10, 21, 5)),
-        task_graph_order = list(range(10, 21, 5)),
-        task_graph_size = list(range(10, 21, 5)),
+        network_order = [10, 50, 100],
+        task_graph_order = [10, 50, 100],
 
         task_cost_low = 300,
         task_cost_high = 500,
         data_cost_low = 300,
         data_cost_high = 500,
 
-        optimizer = "simulated_annealing", # "brute_force"
+        optimizer={
+            "simulated_annealing": dict(
+                sa_neighborhood=["random_connected_neighbor", "random_neighbor"],
+                sa_initial_temperature = [10, 50, 100],
+                sa_base = [0, np.e, 1],
+            )
+        },
+        
         max_iterations = 100,
-        sa_initial_temperature = list(range(10, 51, 10)),
-        sa_base = sorted(np.linspace(0, 1, num=5) + [np.e]),
         scheduler = "heft",
         task_graph_generator = "eugenio", # "simple"
     )
-
-    _range_variables = {k: v for k, v in VARIABLES.items() if isinstance(v, (list, tuple, set))}
-    _static_variables = {k: v for k, v in VARIABLES.items() if not isinstance(v, (list, tuple, set))}
-    for values in product(*_range_variables.values()):
-        yield {**_static_variables, **dict(zip(_range_variables.keys(), values))} 
+    yield from get_combos(VARIABLES)
 
 def main():
-    for config_id, config in enumerate(get_configs()):
+    configs = list(get_configs())
+    for config_id, config in enumerate(configs):
+        print(f"Config {config_id}/{len(configs)} ({config_id/len(configs)*100:.2f}%)")
         for run_id in range(config["runs_per_configuration"]):
-            print(f"{config_id}/{run_id}")
+            print(f"  Run {run_id}")
             if config["task_graph_generator"] == "simple":
                 task_graph_generator = SimpleTaskGraph.random_generator(
                     num_tasks=config["task_graph_order"],
@@ -68,7 +92,7 @@ def main():
             elif config["task_graph_generator"] == "eugenio":
                 task_graph_generator = EugenioSimpleTaskGraphGenerator(
                     nodes=config["task_graph_order"], 
-                    edges=config["task_graph_size"],
+                    edges=random.randint(config["task_graph_order"]-1, config["task_graph_order"] * (config["task_graph_order"] - 1) // 2),
                     task_cost={
                         SimpleTaskGraph.Cost.LOW: config["task_cost_low"],
                         SimpleTaskGraph.Cost.HIGH: config["task_cost_high"],
@@ -147,7 +171,11 @@ def main():
                 optimizer = SimulatedAnnealingOptimizer(
                     mother_network=mother_network,
                     start_network=mother_network.random_subnetwork(),
-                    get_neighbor=mother_network.random_neighbor,
+                    get_neighbor=(
+                        mother_network.random_neighbor 
+                        if config["sa_neighborhood"] == "random_neighbor" 
+                        else mother_network.random_connected_neighbor
+                    ),
                     cost_func=cost_func,
                     n_iterations=config["max_iterations"],
                     accept=ExponentialCool(
@@ -170,6 +198,7 @@ def main():
                         "network": codecs.encode(pickle.dumps(result.network), "base64").decode(),
                         "metadata": codecs.encode(pickle.dumps(result.metadata), "base64").decode(),
                     }) 
+            return 
 
 
 if __name__ == "__main__":
