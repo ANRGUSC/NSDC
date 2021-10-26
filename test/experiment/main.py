@@ -2,6 +2,7 @@ import random
 import numpy as np
 from bnet.optimizers.simulated_annealing import ExponentialCool, SimulatedAnnealingOptimizer
 from bnet.optimizers.brute_force import BruteForceOptimizer
+from bnet.optimizers.random import RandomOptimizer
 from bnet.optimizers.optimizer import Result
 from bnet.task_graph.eugenio_simple_task_graph_generator import EugenioSimpleTaskGraphGenerator
 from bnet.task_graph import SimpleTaskGraph
@@ -40,7 +41,6 @@ def get_combos(config: Dict[str, Union[List, Tuple, Set, Dict]]):
 
 def get_configs() -> Generator[Dict[str, Any], None, None]:
     VARIABLES = dict(
-        runs_per_configuration = 4,
         task_graph_samples = 5,
         task_graph_cycle = True,
 
@@ -62,6 +62,7 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
         data_cost_high = 500,
 
         optimizer={
+            "random": {},
             "simulated_annealing": dict(
                 sa_neighborhood=["random_connected_neighbor", "random_neighbor"],
                 sa_initial_temperature = [10, 50, 100],
@@ -76,10 +77,19 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
     yield from get_combos(VARIABLES)
 
 def main():
+    RUNS_PER_CONFIG = 1
     configs = list(get_configs())
+    total = len(configs) * RUNS_PER_CONFIG
+
+    res = None
+    while res != "y":
+        res = input(f"Going to run {total} experiments. Continue? (y/n): ")
+        if res == "n":
+            return 
+
     for config_id, config in enumerate(configs):
-        print(f"Config {config_id}/{len(configs)} ({config_id/len(configs)*100:.2f}%)")
-        for run_id in range(config["runs_per_configuration"]):
+        print(f"Config {config_id}/{total} ({config_id/total*100:.2f}%)")
+        for run_id in range(RUNS_PER_CONFIG):
             print(f"  Run {run_id}")
             if config["task_graph_generator"] == "simple":
                 task_graph_generator = SimpleTaskGraph.random_generator(
@@ -182,6 +192,13 @@ def main():
                         initial_temperature=config["sa_initial_temperature"],
                         base=config["sa_base"]
                     )
+                )
+            elif config["optimizer"] == "random":
+                optimizer = RandomOptimizer(
+                    mother_network=mother_network,
+                    random_subnetwork=mother_network.random_subnetwork,
+                    cost_func=cost_func,
+                    n_iterations=config["max_iterations"]
                 )
 
             with wandb.init(reinit=True, project="iobt_ns", entity="anrg-iobt_ns", config=config) as run:
