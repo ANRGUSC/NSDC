@@ -102,7 +102,10 @@ def main():
             elif config["task_graph_generator"] == "eugenio":
                 task_graph_generator = EugenioSimpleTaskGraphGenerator(
                     nodes=config["task_graph_order"], 
-                    edges=random.randint(config["task_graph_order"]-1, config["task_graph_order"] * (config["task_graph_order"] - 1) // 2),
+                    edges=random.randint(
+                        config["task_graph_order"] - 1, 
+                        config["task_graph_order"] * (config["task_graph_order"] - 1) // 2
+                    ),
                     task_cost={
                         SimpleTaskGraph.Cost.LOW: config["task_cost_low"],
                         SimpleTaskGraph.Cost.HIGH: config["task_cost_high"],
