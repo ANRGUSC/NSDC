@@ -14,6 +14,9 @@ import dill as pickle
 from itertools import product
 import wandb
 import codecs
+from datetime import datetime 
+from collections import Counter
+from concurrent.futures import ProcessPoolExecutor as Pool
 
 from typing import Any, Dict, Generator, Union, List, Tuple, Set
 
@@ -76,10 +79,167 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
     )
     yield from get_combos(VARIABLES)
 
+def remove_satisfied(configs: List[Dict[str, Any]], 
+                     since: datetime,
+                     num: int) -> Set[Tuple[Tuple]]:
+    api = wandb.Api()
+    runs = api.runs(
+        "anrg-iobt_ns/iobt_ns",
+        filters={
+            "createdAt": {"$gte": since.isoformat()},
+            "state": "finished"
+        }
+    )
+
+    records = Counter([tuple(sorted(run.config.items())) for run in runs])
+
+    configs = [
+        (config, num - records[tuple(sorted(config.items()))]) 
+        for config in configs 
+    ]
+    return [(config, n) for config, n in configs if n > 0]
+
+def run_experiment(args: Tuple[Dict[str, Any], int]) -> None:
+    config, runs = args
+    for run_id in range(runs):
+        if config["task_graph_generator"] == "simple":
+            task_graph_generator = SimpleTaskGraph.random_generator(
+                num_tasks=config["task_graph_order"],
+                data_cost={
+                    SimpleTaskGraph.Cost.LOW: config["data_cost_low"],
+                    SimpleTaskGraph.Cost.HIGH: config["data_cost_high"],
+                }
+            ) 
+        elif config["task_graph_generator"] == "eugenio":
+            task_graph_generator = EugenioSimpleTaskGraphGenerator(
+                nodes=config["task_graph_order"], 
+                edges=random.randint(
+                    config["task_graph_order"] - 1, 
+                    config["task_graph_order"] * (config["task_graph_order"] - 1) // 2
+                ),
+                task_cost={
+                    SimpleTaskGraph.Cost.LOW: config["task_cost_low"],
+                    SimpleTaskGraph.Cost.HIGH: config["task_cost_high"],
+                },
+                data_cost={
+                    SimpleTaskGraph.Cost.LOW: config["data_cost_low"],
+                    SimpleTaskGraph.Cost.HIGH: config["data_cost_high"],
+                }
+            )
+        else:
+            raise ValueError(f'Invalid task graph generator: {config["task_graph_generator"]}')
+
+        if config["task_graph_cycle"]:
+            task_graph_generator = CycleGenerator(
+                task_graphs=[
+                    task_graph_generator.generate() 
+                    for _ in range(config["task_graph_samples"])
+                ]
+            )
+        
+        if config["scheduler"] == "heft":
+            scheduler = HeftScheduler()
+        else:
+            raise ValueError(f'Invalid scheduler: {config["scheduler"]}')
+
+        mother_network = SimpleNetwork.random(
+            config["network_order"],
+            node_speed={
+                SimpleNetwork.Speed.LOW: config["node_speed_low"],        # Node speed, a node with speed s computes a task with size t in n/s seconds
+                SimpleNetwork.Speed.HIGH: config["node_speed_high"],
+            },
+            sat_speed={
+                SimpleNetwork.Speed.LOW: config["sat_speed_low"],         # Satellite speed, an edge with speed (trasnfer rate) s transmits data of size d between two nodes in s/d seconds 
+                SimpleNetwork.Speed.HIGH: config["sat_speed_high"],
+            },
+            radio_speed={
+                SimpleNetwork.Speed.LOW: config["radio_speed_low"],
+                SimpleNetwork.Speed.HIGH: config["radio_speed_high"],
+            },
+            gray_speed={
+                SimpleNetwork.Speed.LOW: config["gray_speed_low"],
+                SimpleNetwork.Speed.HIGH: config["gray_speed_high"],
+            }
+        )
+
+        def cost_func(network: SimpleNetwork) -> Result:
+            task_graphs = []
+            makespans = []
+            for i in range(config["task_graph_samples"]):
+                try:
+                    task_graphs.append(task_graph_generator.generate())
+                    makespans.append(scheduler.schedule(network, task_graphs[-1]))
+                except Exception as e:
+                    print(e) 
+
+            makespan = np.inf if not makespans else sum(makespans) / len(makespans)
+            deploy_cost = network.cost()
+            risk = network.risk()
+            return Result(
+                network=network,
+                cost=deploy_cost + 20 * risk + makespan / 10,
+                metadata={
+                    "task_graphs": task_graphs,
+                    "makespans": makespans,
+                    "deploy_cost": deploy_cost,
+                    "risk": risk,
+                }
+            )
+    
+        if config["optimizer"] == "brute_force":
+            optimizer = BruteForceOptimizer(
+                networks=mother_network.iter_subnetworks(),
+                cost_func=cost_func
+            )
+        elif config["optimizer"] == "simulated_annealing":
+            optimizer = SimulatedAnnealingOptimizer(
+                mother_network=mother_network,
+                start_network=mother_network.random_subnetwork(),
+                get_neighbor=(
+                    mother_network.random_neighbor 
+                    if config["sa_neighborhood"] == "random_neighbor" 
+                    else mother_network.random_connected_neighbor
+                ),
+                cost_func=cost_func,
+                n_iterations=config["max_iterations"],
+                accept=ExponentialCool(
+                    initial_temperature=config["sa_initial_temperature"],
+                    base=config["sa_base"]
+                )
+            )
+        elif config["optimizer"] == "random":
+            optimizer = RandomOptimizer(
+                mother_network=mother_network,
+                random_subnetwork=mother_network.random_subnetwork,
+                cost_func=cost_func,
+                n_iterations=config["max_iterations"]
+            )
+
+        with wandb.init(reinit=True, project="iobt_ns", entity="anrg-iobt_ns", config=config) as run:
+            result: Result
+            best_cost: float = np.inf 
+            for i, result in zip(range(config["max_iterations"]), optimizer.optimize_iter()):
+                if result.cost < best_cost:
+                    best_cost = result.cost 
+                run.log({
+                    "iteration": i, 
+                    "cost": result.cost, 
+                    "best_cost": best_cost, 
+                    "mother_network": codecs.encode(pickle.dumps(mother_network), "base64").decode(),
+                    "network": codecs.encode(pickle.dumps(result.network), "base64").decode(),
+                    "metadata": codecs.encode(pickle.dumps(result.metadata), "base64").decode(),
+                }) 
+
+
 def main():
-    RUNS_PER_CONFIG = 1
-    configs = list(get_configs())
-    total = len(configs) * RUNS_PER_CONFIG
+    RUNS_PER_CONFIG = 3
+    configs = remove_satisfied(
+        list(get_configs()), 
+        datetime(2021, 10, 26, hour=0, minute=0, second=0),
+        RUNS_PER_CONFIG
+    )
+
+    total = sum(n for _, n in configs)
 
     res = None
     while res != "y":
@@ -87,137 +247,8 @@ def main():
         if res == "n":
             return 
 
-    for config_id, config in enumerate(configs):
-        print(f"Config {config_id}/{total} ({config_id/total*100:.2f}%)")
-        for run_id in range(RUNS_PER_CONFIG):
-            print(f"  Run {run_id}")
-            if config["task_graph_generator"] == "simple":
-                task_graph_generator = SimpleTaskGraph.random_generator(
-                    num_tasks=config["task_graph_order"],
-                    data_cost={
-                        SimpleTaskGraph.Cost.LOW: config["data_cost_low"],
-                        SimpleTaskGraph.Cost.HIGH: config["data_cost_high"],
-                    }
-                ) 
-            elif config["task_graph_generator"] == "eugenio":
-                task_graph_generator = EugenioSimpleTaskGraphGenerator(
-                    nodes=config["task_graph_order"], 
-                    edges=random.randint(
-                        config["task_graph_order"] - 1, 
-                        config["task_graph_order"] * (config["task_graph_order"] - 1) // 2
-                    ),
-                    task_cost={
-                        SimpleTaskGraph.Cost.LOW: config["task_cost_low"],
-                        SimpleTaskGraph.Cost.HIGH: config["task_cost_high"],
-                    },
-                    data_cost={
-                        SimpleTaskGraph.Cost.LOW: config["data_cost_low"],
-                        SimpleTaskGraph.Cost.HIGH: config["data_cost_high"],
-                    }
-                )
-            else:
-                raise ValueError(f'Invalid task graph generator: {config["task_graph_generator"]}')
-
-            if config["task_graph_cycle"]:
-                task_graph_generator = CycleGenerator(
-                    task_graphs=[
-                        task_graph_generator.generate() 
-                        for _ in range(config["task_graph_samples"])
-                    ]
-                )
-            
-            if config["scheduler"] == "heft":
-                scheduler = HeftScheduler()
-            else:
-                raise ValueError(f'Invalid scheduler: {config["scheduler"]}')
-
-            mother_network = SimpleNetwork.random(
-                config["network_order"],
-                node_speed={
-                    SimpleNetwork.Speed.LOW: config["node_speed_low"],        # Node speed, a node with speed s computes a task with size t in n/s seconds
-                    SimpleNetwork.Speed.HIGH: config["node_speed_high"],
-                },
-                sat_speed={
-                    SimpleNetwork.Speed.LOW: config["sat_speed_low"],         # Satellite speed, an edge with speed (trasnfer rate) s transmits data of size d between two nodes in s/d seconds 
-                    SimpleNetwork.Speed.HIGH: config["sat_speed_high"],
-                },
-                radio_speed={
-                    SimpleNetwork.Speed.LOW: config["radio_speed_low"],
-                    SimpleNetwork.Speed.HIGH: config["radio_speed_high"],
-                },
-                gray_speed={
-                    SimpleNetwork.Speed.LOW: config["gray_speed_low"],
-                    SimpleNetwork.Speed.HIGH: config["gray_speed_high"],
-                }
-            )
-
-            def cost_func(network: SimpleNetwork) -> Result:
-                task_graphs = []
-                makespans = []
-                for i in range(config["task_graph_samples"]):
-                    try:
-                        task_graphs.append(task_graph_generator.generate())
-                        makespans.append(scheduler.schedule(network, task_graphs[-1]))
-                    except Exception as e:
-                        print(e) 
-
-                makespan = np.inf if not makespans else sum(makespans) / len(makespans)
-                deploy_cost = network.cost()
-                risk = network.risk()
-                return Result(
-                    network=network,
-                    cost=deploy_cost + 20 * risk + makespan / 10,
-                    metadata={
-                        "task_graphs": task_graphs,
-                        "makespans": makespans,
-                        "deploy_cost": deploy_cost,
-                        "risk": risk,
-                    }
-                )
-        
-            if config["optimizer"] == "brute_force":
-                optimizer = BruteForceOptimizer(
-                    networks=mother_network.iter_subnetworks(),
-                    cost_func=cost_func
-                )
-            elif config["optimizer"] == "simulated_annealing":
-                optimizer = SimulatedAnnealingOptimizer(
-                    mother_network=mother_network,
-                    start_network=mother_network.random_subnetwork(),
-                    get_neighbor=(
-                        mother_network.random_neighbor 
-                        if config["sa_neighborhood"] == "random_neighbor" 
-                        else mother_network.random_connected_neighbor
-                    ),
-                    cost_func=cost_func,
-                    n_iterations=config["max_iterations"],
-                    accept=ExponentialCool(
-                        initial_temperature=config["sa_initial_temperature"],
-                        base=config["sa_base"]
-                    )
-                )
-            elif config["optimizer"] == "random":
-                optimizer = RandomOptimizer(
-                    mother_network=mother_network,
-                    random_subnetwork=mother_network.random_subnetwork,
-                    cost_func=cost_func,
-                    n_iterations=config["max_iterations"]
-                )
-
-            with wandb.init(reinit=True, project="iobt_ns", entity="anrg-iobt_ns", config=config) as run:
-                result: Result
-                best_cost: float = np.inf 
-                for i, result in zip(range(config["max_iterations"]), optimizer.optimize_iter()):
-                    if result.cost < best_cost:
-                        best_cost = result.cost 
-                    run.log({
-                        "iteration": i, 
-                        "cost": result.cost, 
-                        "best_cost": best_cost, 
-                        "mother_network": codecs.encode(pickle.dumps(mother_network), "base64").decode(),
-                        "network": codecs.encode(pickle.dumps(result.network), "base64").decode(),
-                        "metadata": codecs.encode(pickle.dumps(result.metadata), "base64").decode(),
-                    }) 
+    pool = Pool()
+    pool.map(run_experiment, configs)
 
 
 if __name__ == "__main__":
