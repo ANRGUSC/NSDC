@@ -16,20 +16,21 @@ class ExponentialCool:
         candidate_result: Result being evaluated. If this functio returns true, candidate_result will become \
             cur_result in the next round.
         initial_temperature: Initial temperature (round 0). Default is 10.
-        base: base for exponentially decreasing acceptance rate. Default is e (~2.718).
+        base: base for exponentially decreasing acceptance rate. Default is 1/e.
     
     Returns:
         float: Temperature for round cur_round
     """
-    def __init__(self, initial_temperature: float = 10, base: float = np.e) -> None:
+    def __init__(self, initial_temperature: float = 10, base: float = 1/np.e) -> None:
         """Constructor for ExponentialCool
         
         Args:
             initial_temperature: Initial temperature (round 0). Default is 10.
-            base: base for exponentially decreasing acceptance rate. Default is e (~2.718).
+            base: base for exponentially decreasing acceptance rate. Default is 1/e.
         """
         self.initial_temperature = initial_temperature
         self.base = base 
+        assert(self.base >= 0 and self.base <= 1)
 
     def __call__(self, 
                  cur_round: int, 
@@ -55,7 +56,7 @@ class ExponentialCool:
         """
         cur_temp = self.initial_temperature / float(cur_round + 1)
         cur_diff = candidate_result.cost - cur_result.cost
-        return cur_diff < 0 or np.random.random() < 0 if self.base == 0 else self.base ** (-cur_diff / cur_temp)
+        return cur_diff < 0 or np.random.random() < self.base ** (cur_diff / cur_temp)
 
 
 class SimulatedAnnealingOptimizer(Optimizer):
