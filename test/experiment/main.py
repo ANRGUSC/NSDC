@@ -56,8 +56,8 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
         gray_speed_low = 100,
         gray_speed_high = 200,
 
-        network_order = [10, 50, 100],
-        task_graph_order = [10, 50, 100],
+        network_order = [10, 15, 20],
+        task_graph_order = [10, 15, 20],
 
         task_cost_low = 300,
         task_cost_high = 500,
@@ -68,8 +68,8 @@ def get_configs() -> Generator[Dict[str, Any], None, None]:
             "random": {},
             "simulated_annealing": dict(
                 sa_neighborhood=["random_connected_neighbor", "random_neighbor"],
-                sa_initial_temperature = [10, 50, 100],
-                sa_base = [0, np.e, 1],
+                sa_initial_temperature = [50, 100, 500],
+                sa_base = [0, 1/np.e, 1],
             )
         },
         
@@ -232,11 +232,11 @@ def run_experiment(args: Tuple[Dict[str, Any], int]) -> None:
 
 
 def main():
-    RUNS_PER_CONFIG = 3
+    RUNS_PER_CONFIG = 1
     configs = remove_satisfied(
         list(get_configs()), 
-        datetime(2021, 10, 26, hour=0, minute=0, second=0),
-        RUNS_PER_CONFIG
+        since=datetime(2021, 11, 2, hour=11 + 7, minute=7, second=0),
+        num=RUNS_PER_CONFIG
     )
 
     total = sum(n for _, n in configs)
