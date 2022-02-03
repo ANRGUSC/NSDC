@@ -1,54 +1,53 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.209.6/containers/python-3
 {
-	"name": "ANRG Codespaces",
+	"name": "Python 3",
 	"build": {
-		"dockerfile": "Dockerfile"
-	},
-	"settings": {
-		"go.toolsManagement.checkForUpdates": "local",
-		"go.useLanguageServer": true,
-		"go.gopath": "/go",
-		"go.goroot": "/usr/local/go",
-		"python.pythonPath": "/home/codespace/miniconda3/bin/python",
-		"python.linting.enabled": true,
-		"python.linting.pylintEnabled": true,
-		"python.formatting.autopep8Path": "/home/codespace/miniconda3/bin/autopep8",
-		// "python.formatting.blackPath": "/home/codespace/miniconda3/bin/black",
-		// "python.formatting.yapfPath": "/home/codespace/miniconda3/bin/yapf",
-		// "python.linting.banditPath": "/home/codespace/miniconda3/bin/bandit",
-		"python.linting.flake8Path": "/home/codespace/miniconda3/bin/flake8",
-		"python.linting.mypyPath": "/home/codespace/miniconda3/bin/mypy",
-		"python.linting.pycodestylePath": "/home/codespace/miniconda3/bin/pycodestyle",
-		"python.linting.pydocstylePath": "/home/codespace/miniconda3/bin/pydocstyle",
-		"python.linting.pylintPath": "/home/codespace/miniconda3/bin/pylint",
-		"lldb.executable": "/usr/bin/lldb",
-		"files.watcherExclude": {
-			"**/target/**": true
+		"dockerfile": "Dockerfile",
+		"context": "..",
+		"args": { 
+			// Update 'VARIANT' to pick a Python version: 3, 3.10, 3.9, 3.8, 3.7, 3.6
+			// Append -bullseye or -buster to pin to an OS version.
+			// Use -bullseye variants on local on arm64/Apple Silicon.
+			"VARIANT": "3.10-bullseye",
+			// Options
+			"NODE_VERSION": "none"
 		}
 	},
-	"remoteUser": "codespace",
-	"overrideCommand": false,
-	"mounts": ["source=codespaces-linux-var-lib-docker,target=/var/lib/docker,type=volume"],
-	"runArgs": [
-		"--cap-add=SYS_PTRACE",
-		"--security-opt",
-		"seccomp=unconfined",
-		"--privileged",
-		"--init"
-	],
-	
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": { 
+		"python.defaultInterpreterPath": "/usr/local/bin/python",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
+		"python.formatting.blackPath": "/usr/local/py-utils/bin/black",
+		"python.formatting.yapfPath": "/usr/local/py-utils/bin/yapf",
+		"python.linting.banditPath": "/usr/local/py-utils/bin/bandit",
+		"python.linting.flake8Path": "/usr/local/py-utils/bin/flake8",
+		"python.linting.mypyPath": "/usr/local/py-utils/bin/mypy",
+		"python.linting.pycodestylePath": "/usr/local/py-utils/bin/pycodestyle",
+		"python.linting.pydocstylePath": "/usr/local/py-utils/bin/pydocstyle",
+		"python.linting.pylintPath": "/usr/local/py-utils/bin/pylint"
+	},
+
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
-		"GitHub.vscode-pull-request-github",
 		"ms-python.python",
-		"ms-azuretools.vscode-docker",
-		// "spadin.remote-x11-ssh",
-		"spadin.remote-x11"
+		"ms-python.vscode-pylance"
 	],
-	
+
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
-	// "oryx build" will automatically install your dependencies and attempt to build your project
-	// "postCreateCommand": "oryx build -p virtualenv_name=.venv --log-file /tmp/oryx-build.log --manifest-dir /tmp || echo 'Could not auto-build. Skipping.'",
-	"postStartCommand": "pip install -e /workspaces/iobt_ns"
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "/usr/local/bin/python3 -m pip install --upgrade pip && pip3 install --user -r requirements.txt",
+
+	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode",
+	"features": {
+		"docker-from-docker": "latest",
+		"git": "latest",
+		"github-cli": "latest"
+	}
 }
