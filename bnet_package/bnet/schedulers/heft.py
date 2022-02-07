@@ -1,3 +1,4 @@
+from typing import Callable, Dict, Hashable, Iterable, Optional
 from bnet import Network, TaskGraph
 from heft.heft import schedule_dag
 from .scheduler import Scheduler
@@ -9,9 +10,12 @@ class HeftScheduler(Scheduler):
     def __init__(self) -> None:
         super().__init__()
 
-    def schedule(self, network: Network, task_graph: TaskGraph) -> float:
+    def get_schedule(self, 
+                     network: Network, 
+                     task_graph: TaskGraph,
+                     can_execute: Callable[[Hashable, Hashable], bool] = lambda *_: True):
         dag = task_graph.to_networkx()
-        comp = task_graph.computation_matrix(network)
+        comp = task_graph.computation_matrix(network, can_execute)
         comm = network.bandwidth_matrix()
 
         # Add dummy source and destination nodes to task graph 
@@ -41,17 +45,32 @@ class HeftScheduler(Scheduler):
             name="weight"
         )
 
-        proc_sched, task_sched, dict_sched = schedule_dag(
+        comm_matrix = 1 / comm.rename(
+            index=network_relabel,
+            columns=network_relabel
+        ).values
+        comp_matrix = comp.rename(
+            index=task_relabel, 
+            columns=network_relabel
+        ).values
+
+        comm_matrix[comm_matrix == np.inf] = 1e-7
+        np.fill_diagonal(comm_matrix, 0)
+
+        # comm_matrix = np.nan_to_num(comm_matrix)
+        # print(comm_matrix)
+        # print(comp_matrix)
+
+        return schedule_dag(
             nx.relabel_nodes(dag, task_relabel),
-            communication_matrix=comm.rename(
-                index=network_relabel, 
-                columns=network_relabel
-            ).values,
-            computation_matrix=comp.rename(
-                index=task_relabel, 
-                columns=network_relabel
-            ).values,
+            communication_matrix=comm_matrix,
+            computation_matrix=comp_matrix,
             communication_startup=np.zeros(len(network.nodes))
         )
 
+    def schedule(self, 
+                 network: Network, 
+                 task_graph: TaskGraph,
+                 can_execute: Callable[[Hashable, Hashable], bool] = lambda *_: True) -> float:
+        proc_sched, task_sched, dict_sched = self.get_schedule(network, task_graph, can_execute)
         return max([event.end for _, event in task_sched.items()])

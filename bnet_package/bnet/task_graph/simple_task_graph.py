@@ -1,16 +1,17 @@
-import numpy as np
-from bnet.network import Network
 import random
-
-from numpy.random import zipf
 from enum import Enum
-from typing import Callable, Dict, Optional, Union, Tuple 
+from typing import Callable, Dict, Hashable, Iterable, Optional, Tuple, Union
+
+import matplotlib.pyplot as plt
 import networkx as nx
-import pandas as pd 
-from .task_graph import TaskGraph
+import numpy as np
+import pandas as pd
 from bnet.generators.generator import TaskGraphGenerator
-import matplotlib.pyplot as plt 
-from networkx.drawing.nx_agraph import write_dot, graphviz_layout
+from bnet.network import Network
+from networkx.drawing.nx_agraph import graphviz_layout, write_dot
+from numpy.random import zipf
+
+from .task_graph import TaskGraph
 
 
 class SimpleTaskGraph(TaskGraph):
@@ -19,12 +20,12 @@ class SimpleTaskGraph(TaskGraph):
         NONE = 0
         LOW = 1
         HIGH = 2
-    
+
     def __init__(self,
                  task_cost: Dict["SimpleTaskGraph.Cost", float] = {},
                  data_cost: Dict["SimpleTaskGraph.Cost", float] = {}) -> None:
         """Constructor for SimpleTaskGraph
-        
+
         Args:
             task_cost: Function that converts a SimpleTaskGraph.Cost (NONE, LOW, HIGH) to an actual \
                 task cost (float). By Default, NONE=0, LOW=1, and HIGH=2.
@@ -44,7 +45,7 @@ class SimpleTaskGraph(TaskGraph):
 
     def add_task(self, name: str, cost: "SimpleTaskGraph.Cost") -> None:
         """Adds a task to the task graph
-        
+
         Args:
             name: name of task to add
             cost: cost of task to add (NONE, LOW, HIGH)
@@ -57,7 +58,7 @@ class SimpleTaskGraph(TaskGraph):
 
     def add_dependency(self, src: str, dst: str, data: "SimpleTaskGraph.Cost") -> None:
         """Adds a dependency to the task graph
-        
+
         Args:
             src: Source task which sends data to dst.
             dst: Destination task which depends on the output of src.
@@ -71,9 +72,11 @@ class SimpleTaskGraph(TaskGraph):
     def remove_dependency(self, src: str, dst: str) -> None:
         self._graph.remove_edge(src, dst)
 
-    def computation_matrix(self, network: Network) -> pd.DataFrame:   
+    def computation_matrix(self,
+                           network: Network,
+                           can_execute: Callable[[Hashable, Hashable], bool] = lambda *_: True) -> pd.DataFrame:
         """Returns computation matrix for a given task graph and network
-        
+
         Returns DataFrame that estimates how long each task would take to execute on \
         each node in a network
 
@@ -82,17 +85,25 @@ class SimpleTaskGraph(TaskGraph):
         Returns:
             pd.DataFrame: Columns are nodes in the network and rows are tasks. Cells \
                 contain the estimated amount of time to execute the task on a given node \
-                in the network. 
-        """    
+                in the network.
+            can_execute:
+        """
         network_graph = network.to_networkx()
+        rows = []
+        for task in self._graph.nodes:
+            task_cost = self.task_cost[self._graph.nodes[task]["cost"]]
+            cells = []
+            for node in network_graph.nodes:
+                node_speed = network_graph.nodes[node]["speed"]
+                cannot_execute = node_speed == 0 or not can_execute(task, node)
+                if cannot_execute:
+                    cells.append(np.inf)
+                else:
+                    cells.append(task_cost / node_speed)
+            rows.append(cells)
+
         return pd.DataFrame(
-            [
-                [
-                    np.inf if network_graph.nodes[node]["speed"] == 0 else self.task_cost[self._graph.nodes[task]["cost"]] / network_graph.nodes[node]["speed"]
-                    for node in network_graph.nodes
-                ]
-                for task in self._graph.nodes
-            ],
+            rows,
             columns=list(network_graph.nodes),
             index=list(self._graph.nodes)
         )
@@ -108,11 +119,11 @@ class SimpleTaskGraph(TaskGraph):
         graph = nx.DiGraph()
         graph.add_nodes_from(self._graph.nodes)
         nx.set_node_attributes(
-            graph, 
+            graph,
             {
-                node: self.task_cost[self._graph.nodes[node]["cost"]] 
+                node: self.task_cost[self._graph.nodes[node]["cost"]]
                 for node in self._graph.nodes
-            }, 
+            },
             name="cost"
         )
 
@@ -123,10 +134,10 @@ class SimpleTaskGraph(TaskGraph):
         graph.add_edges_from(data.keys())
         nx.set_edge_attributes(graph, data, name="data")
 
-        return graph 
+        return graph
 
     @classmethod
-    def random_generator(cls, 
+    def random_generator(cls,
                          num_tasks: int,
                          task_cost: Dict["SimpleTaskGraph.Cost", float] = {},
                          data_cost: Dict["SimpleTaskGraph.Cost", float] = {}) -> "SimpleTaskGraphGenerator":
@@ -134,9 +145,9 @@ class SimpleTaskGraph(TaskGraph):
 
         Generates a random simple task graph by first generating a complete graph and adding
         edges to the task graph as long as doing so would not create a cycle.
-        
+
         Args:
-            num_nodes: Number of nodes in graph. 
+            num_nodes: Number of nodes in graph.
             task_cost: Function that converts a SimpleTaskGraph.Cost (NONE, LOW, HIGH) to an actual \
                 task cost (float). By Default, NONE=0, LOW=1, and HIGH=2.
             data_cost: Function that converts a SimpleTaskGraph.Cost (NONE, LOW, HIGH) to an actual \
@@ -145,7 +156,7 @@ class SimpleTaskGraph(TaskGraph):
         return SimpleTaskGraphGenerator(lambda: num_tasks, task_cost, data_cost)
 
     @classmethod
-    def random_generator_zipf(cls, 
+    def random_generator_zipf(cls,
                               zipf_constant: float,
                               zipf_low: int = 10,
                               task_cost: Dict["SimpleTaskGraph.Cost", float] = {},
@@ -155,9 +166,9 @@ class SimpleTaskGraph(TaskGraph):
         Generates a random simple task graph by first generating a complete graph and adding
         edges to the task graph as long as doing so would not create a cycle.
         Uses a Zipf distribution to determine the number of tasks to create
-        
+
         Args:
-            zipf_constant: Zipf constant for generating task graphs with different sizes. 
+            zipf_constant: Zipf constant for generating task graphs with different sizes.
             zipf_low: Minimum number of tasks to generate. Default is 10.
             task_cost: Function that converts a SimpleTaskGraph.Cost (NONE, LOW, HIGH) to an actual \
                 task cost (float). By Default, NONE=0, LOW=1, and HIGH=2.
@@ -174,23 +185,23 @@ class SimpleTaskGraph(TaskGraph):
             fig = ax.get_figure()
 
         colors = {
-            SimpleTaskGraph.Cost.NONE: "gray", 
+            SimpleTaskGraph.Cost.NONE: "gray",
             SimpleTaskGraph.Cost.LOW: "#EBCB8B",
             SimpleTaskGraph.Cost.HIGH: "#BF616A"
         }
-        
+
         node_colors = [
             colors[self._graph.nodes[node]["cost"]]
             for node in self._graph.nodes
         ]
-        
+
         edge_colors = [
             colors[self._graph.edges[edge]["data"]]
             for edge in self._graph.edges
         ]
         nx.draw(
             self._graph, pos, ax=ax,
-            with_labels=True, arrows=True, 
+            with_labels=True, arrows=True,
             node_color=node_colors,
             edge_color=edge_colors
         )
@@ -199,11 +210,11 @@ class SimpleTaskGraph(TaskGraph):
 
 class SimpleTaskGraphGenerator(TaskGraphGenerator):
     """Simple Task Graph Generator
-    
+
     Generates a random simple task graph by first generating a complete graph and adding
     edges to the task graph as long as doing so would not create a cycle.
     """
-    def __init__(self, 
+    def __init__(self,
                  random_num_tasks: Callable[[], int],
                  task_cost: Dict["SimpleTaskGraph.Cost", float] = {},
                  data_cost: Dict["SimpleTaskGraph.Cost", float] = {}) -> None:
@@ -227,7 +238,7 @@ class SimpleTaskGraphGenerator(TaskGraphGenerator):
         choices = [SimpleTaskGraph.Cost.LOW, SimpleTaskGraph.Cost.HIGH]
         if include_none:
             choices.append(SimpleTaskGraph.Cost.NONE)
-        return random.choice(choices) 
+        return random.choice(choices)
 
     def generate(self) -> SimpleTaskGraph:
         """Generates a random SimpleTaskGraph
@@ -237,7 +248,7 @@ class SimpleTaskGraphGenerator(TaskGraphGenerator):
         """
         task_graph = SimpleTaskGraph(self.task_cost, self.data_cost)
         graph: nx.DiGraph = nx.complete_graph(self.random_num_tasks())
-        
+
         for task in graph.nodes():
             task_graph.add_task(task, cost=self.random_cost())
 

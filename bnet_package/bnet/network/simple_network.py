@@ -30,7 +30,12 @@ class SimpleNetwork(Network):
                  node_speed: Dict["SimpleNetwork.Speed", float] = {},
                  radio_speed: Dict["SimpleNetwork.Speed", float] = {},
                  sat_speed: Dict["SimpleNetwork.Speed", float] = {},
-                 gray_speed: Dict["SimpleNetwork.Speed", float] = {}) -> None:
+                 gray_speed: Dict["SimpleNetwork.Speed", float] = {},
+                 
+                 node_cost: Dict["SimpleNetwork.Speed", float] = {},
+                 radio_cost: Dict["SimpleNetwork.Speed", float] = {},
+                 sat_cost: Dict["SimpleNetwork.Speed", float] = {},
+                 gray_cost: Dict["SimpleNetwork.Speed", float] = {}) -> None:
         """Constructor for SimpleNetwork
 
         Args:
@@ -61,7 +66,25 @@ class SimpleNetwork(Network):
             speed: gray_speed.get(speed, speed.value)
             for speed in list(SimpleNetwork.Speed)
         }
+
         self.add_node("__satellite__", SimpleNetwork.Speed.NONE, pos=(0, 0))
+
+        self.node_cost = {
+            speed: node_cost.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
+        self.radio_cost = {
+            speed: radio_cost.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
+        self.sat_cost = {
+            speed: sat_cost.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
+        self.gray_cost = {
+            speed: gray_cost.get(speed, speed.value)
+            for speed in list(SimpleNetwork.Speed)
+        }
 
     @property
     def nodes(self) -> List[str]:
@@ -81,15 +104,15 @@ class SimpleNetwork(Network):
         for node in self._graph.nodes:
             if node == "__satellite__":
                 continue
-            cost += self.node_speed[self._graph.nodes[node]["speed"]]
+            cost += self.node_cost[self._graph.nodes[node]["speed"]]
         for edge in self._graph.edges:
             _, _, key = edge
             if key == "satellite":
-                cost += self.sat_speed[self._graph.edges[edge]["speed"]]
+                cost += self.sat_cost[self._graph.edges[edge]["speed"]]
             elif key == "radio":
-                cost += self.radio_speed[self._graph.edges[edge]["speed"]]
+                cost += self.radio_cost[self._graph.edges[edge]["speed"]]
             else:
-                cost += self.gray_speed[self._graph.edges[edge]["speed"]]
+                cost += self.gray_cost[self._graph.edges[edge]["speed"]]
         
         return cost 
 
@@ -98,7 +121,7 @@ class SimpleNetwork(Network):
         for edge in self._graph.edges:
             _, _, key = edge
             if key == "gray":
-                risk += self.gray_speed[self._graph.edges[edge]["speed"]]
+                risk += 1 # self.gray_speed[self._graph.edges[edge]["speed"]]
         return risk 
 
     def add_node(self, name: str, speed: "SimpleNetwork.Speed", pos: Tuple[float, float]) -> None:
@@ -360,7 +383,7 @@ class SimpleNetwork(Network):
         graph: nx.MultiGraph = self._graph.copy()
         graph.remove_node("__satellite__")
         colors = {
-            SimpleNetwork.Speed.NONE: "gray", 
+            SimpleNetwork.Speed.NONE: "#BF616A",
             SimpleNetwork.Speed.LOW: "#88C0D0",
             SimpleNetwork.Speed.HIGH: "#A3BE8C"
         }
@@ -405,7 +428,7 @@ class SimpleNetwork(Network):
             fig = ax.get_figure()
         nx.draw_networkx_nodes(
             graph, pos=pos, ax=ax,
-            alpha=node_alpha, 
+            alpha=node_alpha,
             node_color=node_colors
         )
         nx.draw_networkx_labels(
@@ -413,7 +436,9 @@ class SimpleNetwork(Network):
         )
         nx.draw_networkx_edges(
             graph, pos=pos, ax=ax,
-            edge_color=edge_colors, style=edge_styles, width=edge_widths,
+            edge_color=edge_colors, 
+            style=edge_styles, 
+            width=edge_widths,
             alpha=edge_alpha
         )
         return fig, ax

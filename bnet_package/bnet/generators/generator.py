@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List
+
 from ..task_graph import TaskGraph
+
 
 class TaskGraphGenerator(ABC):
     def __init__(self) -> None:
@@ -13,11 +15,11 @@ class TaskGraphGenerator(ABC):
         Returns:
             TaskGraph: generated task graph
         """
-        pass 
+        pass
 
-class CycleGenerator(TaskGraphGenerator):
+class TaskGraphSetGenerator(TaskGraphGenerator):
     """Simple Task Graph Generator which just cycles through a finite \
-        collection of TaskGraphs 
+        collection of TaskGraphs
     """
     def __init__(self, task_graphs: List[TaskGraph]) -> None:
         super().__init__()

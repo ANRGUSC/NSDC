@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Dict, Hashable, Iterable, Optional
 
 import networkx as nx
 import pandas as pd 
@@ -55,7 +55,9 @@ class TaskGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def computation_matrix(self, network: Network) -> pd.DataFrame:
+    def computation_matrix(self, 
+                           network: Network,
+                           can_execute: Callable[[Hashable, Hashable], bool] = lambda *_: True) -> pd.DataFrame:
         """Returns computation matrix for a given task graph and network
         
         Returns DataFrame that estimates how long each task would take to execute on \

@@ -8,7 +8,7 @@ from bnet.task_graph.eugenio_simple_task_graph_generator import EugenioSimpleTas
 from bnet.task_graph import SimpleTaskGraph
 from bnet.network import SimpleNetwork
 from bnet.schedulers import HeftScheduler
-from bnet.generators.generator import CycleGenerator
+from bnet.generators.generator import TaskGraphSetGenerator
 
 import dill as pickle 
 from itertools import product
@@ -130,7 +130,7 @@ def run_experiment(args: Tuple[Dict[str, Any], int]) -> None:
             raise ValueError(f'Invalid task graph generator: {config["task_graph_generator"]}')
 
         if config["task_graph_cycle"]:
-            task_graph_generator = CycleGenerator(
+            task_graph_generator = TaskGraphSetGenerator(
                 task_graphs=[
                     task_graph_generator.generate() 
                     for _ in range(config["task_graph_samples"])
