@@ -5,8 +5,7 @@
 ## Usage
 Take a look at and run the test scripts:
 ```bash
-python test/brute_force/main.py -s 5
-python test/comparison/main.py -s 5
+python test/exhaustive/main.py
 ```
 
 ## Acknowledgements
