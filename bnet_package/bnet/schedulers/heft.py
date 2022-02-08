@@ -45,21 +45,17 @@ class HeftScheduler(Scheduler):
             name="weight"
         )
 
-        comm_matrix = 1 / comm.rename(
+        comm_matrix = comm.rename(
             index=network_relabel,
             columns=network_relabel
         ).values
+        comm_matrix[comm_matrix == 0] = 1e-7
+        np.fill_diagonal(comm_matrix, 0)
+        
         comp_matrix = comp.rename(
             index=task_relabel, 
             columns=network_relabel
         ).values
-
-        comm_matrix[comm_matrix == np.inf] = 1e-7
-        np.fill_diagonal(comm_matrix, 0)
-
-        # comm_matrix = np.nan_to_num(comm_matrix)
-        # print(comm_matrix)
-        # print(comp_matrix)
 
         return schedule_dag(
             nx.relabel_nodes(dag, task_relabel),
