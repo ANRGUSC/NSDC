@@ -1,7 +1,7 @@
 from copy import deepcopy
 import pathlib
-from typing import Optional
-from bnet.task_graph.task_graph import TaskGraph
+from random import choice
+from typing import List, Optional
 
 import matplotlib.patches as mpatches
 import numpy as np
@@ -21,10 +21,12 @@ thisdir = pathlib.Path(__file__).resolve().parent
 savedir = thisdir.joinpath("outputs")
 savedir.mkdir(parents=True, exist_ok=True)
 
-NUM_TASK_GRAPHS = 1
-COEF_MAKESPAN = 1/50
+NUM_TASK_GRAPHS = 5
+COEF_MAKESPAN = 1/10
 COEF_RISK = 1
-COEF_DEPLOY_COST = 1.25
+COEF_DEPLOY_COST = 1/10
+
+OUTLIER_COST = 100
 
 
 def get_network() -> SimpleNetwork:
@@ -34,22 +36,22 @@ def get_network() -> SimpleNetwork:
         node_speed={
             # Node speed, a node with speed s computes a task with size t
             # in n/s seconds
-            SimpleNetwork.Speed.LOW: 1,
-            SimpleNetwork.Speed.HIGH: 2,
+            SimpleNetwork.Speed.LOW: 1/10,
+            SimpleNetwork.Speed.HIGH: 2/10,
         },
         sat_speed={
             # Satellite speed, an edge with speed (transfer rate) s transmits
             # data of size d between two nodes in s/d seconds
-            SimpleNetwork.Speed.LOW: 3,
-            SimpleNetwork.Speed.HIGH: 4,
+            SimpleNetwork.Speed.LOW: 1/5,
+            SimpleNetwork.Speed.HIGH: 2/5,
         },
         radio_speed={
-            SimpleNetwork.Speed.LOW: 1,
-            SimpleNetwork.Speed.HIGH: 2,
+            SimpleNetwork.Speed.LOW: 1/5,
+            SimpleNetwork.Speed.HIGH: 2/5,
         },
         gray_speed={
-            SimpleNetwork.Speed.LOW: 10,
-            SimpleNetwork.Speed.HIGH: 20,
+            SimpleNetwork.Speed.LOW: 4/5,
+            SimpleNetwork.Speed.HIGH: 8/5,
         },
 
         # Deploy Cost by resource
@@ -58,12 +60,12 @@ def get_network() -> SimpleNetwork:
             SimpleNetwork.Speed.HIGH: 2,
         },
         sat_cost={
-            SimpleNetwork.Speed.LOW: 7,
+            SimpleNetwork.Speed.LOW: 5,
             SimpleNetwork.Speed.HIGH: 10,
         },
         radio_cost={
-            SimpleNetwork.Speed.LOW: 6,
-            SimpleNetwork.Speed.HIGH: 8,
+            SimpleNetwork.Speed.LOW: 5,
+            SimpleNetwork.Speed.HIGH: 10,
         },
         gray_cost={
             SimpleNetwork.Speed.LOW: 1,
@@ -135,12 +137,12 @@ class CyclesGenerator(TaskGraphGenerator):
 
         task_graph = SimpleTaskGraph(
             task_cost={
-                SimpleTaskGraph.Cost.LOW: 50,
-                SimpleTaskGraph.Cost.HIGH: 100,
+                SimpleTaskGraph.Cost.LOW: 10,
+                SimpleTaskGraph.Cost.HIGH: 20,
             },
             data_cost={
-                SimpleTaskGraph.Cost.LOW: 5,
-                SimpleTaskGraph.Cost.HIGH: 7,
+                SimpleTaskGraph.Cost.LOW: 3,
+                SimpleTaskGraph.Cost.HIGH: 5,
             }
         )
         
@@ -156,36 +158,42 @@ class CyclesGenerator(TaskGraphGenerator):
 
 
 class ExampleGenerator(TaskGraphGenerator):
-    def __init__(self) -> None:
+    def __init__(self, levels: List[int]) -> None:
         super().__init__()
-        self.task_graph = SimpleTaskGraph(
-            task_cost={
-                SimpleTaskGraph.Cost.LOW: 10,
-                SimpleTaskGraph.Cost.HIGH: 50,
-            },
-            data_cost={
-                SimpleTaskGraph.Cost.LOW: 5,
-                SimpleTaskGraph.Cost.HIGH: 8,
-            }
-        )
-        self.task_graph.add_task(1, SimpleTaskGraph.Cost.HIGH)
-        self.task_graph.add_task(2, SimpleTaskGraph.Cost.LOW)
-        self.task_graph.add_task(3, SimpleTaskGraph.Cost.HIGH)
-        self.task_graph.add_task(4, SimpleTaskGraph.Cost.LOW)
-        self.task_graph.add_task(5, SimpleTaskGraph.Cost.HIGH)
-        self.task_graph.add_task(6, SimpleTaskGraph.Cost.LOW)
-
-        self.task_graph.add_dependency(1, 2, SimpleTaskGraph.Cost.HIGH)
-        self.task_graph.add_dependency(1, 3, SimpleTaskGraph.Cost.LOW)
-        self.task_graph.add_dependency(1, 4, SimpleTaskGraph.Cost.HIGH)
-        self.task_graph.add_dependency(4, 5, SimpleTaskGraph.Cost.HIGH)
-        self.task_graph.add_dependency(3, 5, SimpleTaskGraph.Cost.LOW)
-        self.task_graph.add_dependency(3, 6, SimpleTaskGraph.Cost.LOW)
-        self.task_graph.add_dependency(5, 6, SimpleTaskGraph.Cost.LOW)
-        self.task_graph.add_dependency(2, 6, SimpleTaskGraph.Cost.LOW)
+        self.levels = levels
 
     def generate(self) -> SimpleTaskGraph:
-        return self.task_graph
+        choices = [
+            SimpleTaskGraph.Cost.LOW,
+            SimpleTaskGraph.Cost.HIGH
+        ]
+        task_graph = SimpleTaskGraph(
+            task_cost={
+                SimpleTaskGraph.Cost.LOW: 1,
+                SimpleTaskGraph.Cost.HIGH: 2,
+            },
+            data_cost={
+                SimpleTaskGraph.Cost.LOW: 1,
+                SimpleTaskGraph.Cost.HIGH: 2,
+            }
+        )
+
+        nodes = []
+        task_count = 0
+        for i, level in enumerate(self.levels):
+            nodes.append([])
+            for _ in range(level):
+                task_count += 1
+
+                nodes[-1].append(task_count)
+                task_graph.add_task(task_count, choice(choices))
+                if i == 0:
+                    continue
+                for src in nodes[-2]:
+                    task_graph.add_dependency(src, task_count, choice(choices))
+
+
+        return task_graph
     
 def draw_network(path: pathlib.Path,
                  network: SimpleNetwork, 
@@ -237,7 +245,7 @@ def draw_task_graph(path: pathlib.Path,
             mpatches.Patch(color='#BF616A', label='High Cost/Data'),
             mpatches.Patch(color='#EBCB8B', label='Low Cost/Data')
         ],
-        loc="upper left"
+        loc="lower left"
     )
     ax.axis('off')
     ax.margins(0)
@@ -251,8 +259,8 @@ def main():
         title="Mother Network"
     )
 
-    _generator = CyclesGenerator(70)
-    # _generator = ExampleGenerator()
+    # _generator = CyclesGenerator(100)
+    _generator = ExampleGenerator([5, 3, 1])
     task_graph_generator = TaskGraphSetGenerator(
         task_graphs=[
             _generator.generate()
@@ -317,7 +325,7 @@ def main():
     best_cost: float = np.inf
     best_network: Optional[SimpleNetwork] = None 
     for res in optimizer.optimize_iter():
-        if res.cost > 100000:
+        if res.cost > OUTLIER_COST:
             continue
         rows.append([
             np.inf if not res.metadata["makespans"] else np.mean(res.metadata["makespans"]),
