@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Generator
-from iobt_ns import Network
+from nsdc import Network
 from dataclasses import dataclass, field
 
 @dataclass

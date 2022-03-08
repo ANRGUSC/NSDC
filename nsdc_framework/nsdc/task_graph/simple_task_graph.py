@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from iobt_ns.generators.generator import TaskGraphGenerator
-from iobt_ns.network import Network
+from nsdc.generators.generator import TaskGraphGenerator
+from nsdc.network import Network
 from networkx.drawing.nx_agraph import graphviz_layout, write_dot
 from numpy.random import zipf
 

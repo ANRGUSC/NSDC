@@ -1,4 +1,4 @@
-from iobt_ns.network.network import Network
+from nsdc.network.network import Network
 from typing import Callable, Generator
 from .optimizer import Optimizer, Result
 import numpy as np

@@ -9,7 +9,7 @@ import dash_core_components as dcc
 from uuid import uuid4
 
 import numpy
-from iobt_ns.network import MixedNetwork, SimpleNetwork
+from nsdc.network import MixedNetwork, SimpleNetwork
 
 app = dash.Dash(
     __name__,

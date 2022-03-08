@@ -1,5 +1,5 @@
 from typing import Callable, Dict, Hashable, Iterable, Optional
-from iobt_ns import Network, TaskGraph
+from nsdc import Network, TaskGraph
 from heft.heft import schedule_dag
 from .scheduler import Scheduler
 import networkx as nx 

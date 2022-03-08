@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Hashable, Callable
-from iobt_ns import TaskGraph, Network
+from nsdc import TaskGraph, Network
 
 class Scheduler(ABC):
     def __init__(self) -> None:

@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
-from iobt_ns.generators.generator import TaskGraphGenerator, TaskGraphSetGenerator
-from iobt_ns.network import SimpleNetwork
-from iobt_ns.optimizers.exhaustive import ExhaustiveSearch
-from iobt_ns.optimizers.optimizer import Result
-from iobt_ns.schedulers import HeftScheduler
-from iobt_ns.task_graph import SimpleTaskGraph
+from nsdc.generators.generator import TaskGraphGenerator, TaskGraphSetGenerator
+from nsdc.network import SimpleNetwork
+from nsdc.optimizers.exhaustive import ExhaustiveSearch
+from nsdc.optimizers.optimizer import Result
+from nsdc.schedulers import HeftScheduler
+from nsdc.task_graph import SimpleTaskGraph
 from matplotlib.lines import Line2D
 
 from heft.gantt import showGanttChart

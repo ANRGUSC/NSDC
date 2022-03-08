@@ -1,8 +1,8 @@
 
 from typing import Dict
-from iobt_ns.task_graph.simple_task_graph import SimpleTaskGraph
-from iobt_ns.task_graph.task_graph import TaskGraph
-from iobt_ns.generators.generator import TaskGraphGenerator
+from nsdc.task_graph.simple_task_graph import SimpleTaskGraph
+from nsdc.task_graph.task_graph import TaskGraph
+from nsdc.generators.generator import TaskGraphGenerator
 
 import random 
 import networkx as nx 

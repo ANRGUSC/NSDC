@@ -1,6 +1,6 @@
-# IOBT Network Synthesis Problem
+# The NSDC Framework
 
-[![Open In Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/ANRGUSC/iobt_ns)
+[![Open In Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/ANRGUSC/nsdc)
 
 ## Usage
 Take a look at and run the test scripts:
