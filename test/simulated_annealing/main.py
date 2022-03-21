@@ -1,5 +1,3 @@
-from copy import deepcopy
-from operator import index
 import pathlib
 import random
 from typing import List, Optional
@@ -273,7 +271,6 @@ def main():
     )
 
     optimizer_simulated_annealing = SimulatedAnnealingOptimizer(
-        mother_network=mother_network,
         start_network=mother_network.random_subnetwork(),
         get_neighbor=mother_network.random_neighbor,
         cost_func=cost_func,
