@@ -1,4 +1,4 @@
 #!/bin/bash
 
 pip install --upgrade pip
-pip install -e ./nsdc
+pip install -e ./nsdc_framework
