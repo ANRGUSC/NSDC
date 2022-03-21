@@ -1,6 +1,7 @@
 # The NSDC Framework
-
 [![Open In Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/ANRGUSC/nsdc)
+
+Network Synthesis for Dispersed Computing (NSDC) - a general framework.
 
 ## Usage
 Take a look at and run the test scripts:
