@@ -6,7 +6,9 @@
 Take a look at and run the test scripts:
 ```bash
 python test/exhaustive/main.py
+python test/exhaustive/plot_results.py
 ```
+Then, take a look at the output figures/plots/data generated in test/exhaustive/outputs.
 
 ## Acknowledgements
 This work was supported in part by Army Research Laboratory
