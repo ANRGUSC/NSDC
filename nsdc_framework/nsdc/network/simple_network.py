@@ -1,7 +1,9 @@
-from abc import abstractmethod
 from itertools import chain, combinations
-import json
-from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple, Generator, Union
+from typing import (
+    Callable, Dict, Iterable, 
+    List, Optional, Set, 
+    Tuple, Generator, Union
+)
 import networkx as nx
 import numpy as np
 import pandas as pd 
@@ -11,7 +13,6 @@ from numpy.random import zipf, rand
 import random
 from .network import Network
 import matplotlib.pyplot as plt
-from networkx.readwrite import json_graph
 
 class SimpleNetwork(Network):
     class Speed(Enum):
@@ -98,6 +99,9 @@ class SimpleNetwork(Network):
 
     def get_pos(self, node: str) -> Tuple[float, float]:
         return self._graph.nodes[node]["pos"]
+
+    def get_speed(self, node: str) -> "SimpleNetwork.Speed":
+        return self._graph.nodes[node]["speed"]
 
     def cost(self) -> float:
         cost = 0.0

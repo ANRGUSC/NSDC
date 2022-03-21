@@ -61,14 +61,12 @@ class ExponentialCool:
 
 class SimulatedAnnealingOptimizer(Optimizer):
     def __init__(self, 
-                 mother_network: Network, 
                  start_network: Network,
                  get_neighbor: Callable[[Network], Network],
                  cost_func: Callable[[Network], Result],
                  n_iterations: int,
                  accept: Callable[[int, Result, Result], bool] = ExponentialCool()) -> None:
         super().__init__()
-        self.mother_network = mother_network
         self.get_neighbor = get_neighbor
         self.cost_func = cost_func
         self.start_network = start_network
