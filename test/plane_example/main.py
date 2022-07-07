@@ -1,30 +1,25 @@
-import pathlib
+from copy import deepcopy
+import math
 import random
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import matplotlib
-from nsdc.optimizers.simulated_annealing import ExponentialCool, SimulatedAnnealingOptimizer
+from matplotlib import patches
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-
-import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
+from nsdc.generators.generator import TaskGraphGenerator, TaskGraphSetGenerator
+from nsdc.network.simple_network import SimpleNetwork
+from nsdc.optimizers.optimizer import Result
+from nsdc.optimizers.simulated_annealing import ExponentialCool, SimulatedAnnealingOptimizer
+from nsdc.schedulers.heft import HeftScheduler
+from nsdc.task_graph.simple_task_graph import SimpleTaskGraph
 import numpy as np
 import pandas as pd
-from nsdc.generators.generator import TaskGraphGenerator, TaskGraphSetGenerator
-from nsdc.network import SimpleNetwork
-from nsdc.optimizers.exhaustive import ExhaustiveSearch
-from nsdc.optimizers.optimizer import Result
-from nsdc.schedulers import HeftScheduler
-from nsdc.task_graph import SimpleTaskGraph
-from matplotlib.lines import Line2D
-
+from plane_network import PlaneNetworkFamily
+import pathlib
 from heft.gantt import showGanttChart
 import warnings
 warnings.filterwarnings('ignore')
-
-def saveGanttChart(proc_schedules, path: pathlib.Path):
-    showGanttChart(proc_schedules)
-    plt.savefig(path)
-    plt.close()
 
 thisdir = pathlib.Path(__file__).resolve().parent
 savedir = thisdir.joinpath("outputs")
@@ -39,10 +34,48 @@ OUTLIER_COST = 100
 MAX_ITERATIONS = 100
 
 
-def get_network() -> SimpleNetwork:
-    ## MOTHER NETWORK ##
-    # Construct Network
-    mother_network = SimpleNetwork(
+def saveGanttChart(proc_schedules, path: pathlib.Path):
+    showGanttChart(proc_schedules)
+    plt.savefig(path)
+    plt.close()
+
+def get_network_family() -> PlaneNetworkFamily:
+    def satellite_bandwidth(pos: Tuple[float, float]) -> SimpleNetwork.Speed:
+        x, y = pos 
+        if x >= 0.5 and y >= 0.5:
+            return SimpleNetwork.Speed.NONE
+        elif y >= 0.5:
+            return SimpleNetwork.Speed.LOW
+        else:
+            return SimpleNetwork.Speed.HIGH
+        
+    def radio_bandwidth(p1: Tuple[float, float], p2: Tuple[float, float]) -> SimpleNetwork.Speed:
+        x1, y1 = p1 
+        x2, y2 = p2 
+        d = math.sqrt((x1-x2)**2 + (y1-y2)**2)
+        if d < 0.1:
+            return SimpleNetwork.Speed.HIGH
+        elif d < 0.3:
+            return SimpleNetwork.Speed.LOW
+        else:
+            return SimpleNetwork.Speed.NONE
+    
+    def gray_bandwidth(p1: Tuple[float, float], p2: Tuple[float, float]) -> SimpleNetwork.Speed:
+        x1, y1 = p1 
+        x2, y2 = p2 
+        if x1 <= 0.3 and x2 <= 0.3:
+            if y1 >= 0.5 or y2 >= 0.5:
+                return SimpleNetwork.Speed.LOW
+            else:
+                return SimpleNetwork.Speed.HIGH
+        else:
+            return SimpleNetwork.Speed.NONE
+
+
+    network_family = PlaneNetworkFamily(
+        satellite_bandwidth=satellite_bandwidth,
+        radio_bandwidth=radio_bandwidth,
+        gray_bandwidth=gray_bandwidth,
         node_speed={
             # Node speed, a node with speed s computes a task with size t
             # in n/s seconds
@@ -82,30 +115,14 @@ def get_network() -> SimpleNetwork:
             SimpleNetwork.Speed.HIGH: 2,
         }
     )
-    # Add 5 nodes with specified compute speeds and positions
-    mother_network.add_node(0, SimpleNetwork.Speed.LOW, pos=(0, 0.25))
-    mother_network.add_node(1, SimpleNetwork.Speed.LOW, pos=(0.35, 0.3))
-    mother_network.add_node(2, SimpleNetwork.Speed.LOW, pos=(0.4, 0.15))
-    mother_network.add_node(3, SimpleNetwork.Speed.HIGH, pos=(0.8, 0.3))
-    mother_network.add_node(4, SimpleNetwork.Speed.HIGH, pos=(0.6, 0.6))
 
-    # Add gray network edges
-    mother_network.add_gray_edge(2, 3, SimpleNetwork.Speed.HIGH)
-    mother_network.add_gray_edge(3, 4, SimpleNetwork.Speed.HIGH)
-    mother_network.add_gray_edge(2, 4, SimpleNetwork.Speed.LOW)
+    network_family.add_node(0, SimpleNetwork.Speed.LOW, pos=(0.1, 0.25))
+    network_family.add_node(1, SimpleNetwork.Speed.LOW)
+    network_family.add_node(2, SimpleNetwork.Speed.LOW)
+    network_family.add_node(3, SimpleNetwork.Speed.HIGH)
+    network_family.add_node(4, SimpleNetwork.Speed.HIGH, pos=(0.6, 0.6))
 
-    # Add radio network edges
-    mother_network.add_radio_edge(1, 0, SimpleNetwork.Speed.LOW)
-    mother_network.add_radio_edge(2, 1, SimpleNetwork.Speed.HIGH)
-    mother_network.add_radio_edge(2, 0, SimpleNetwork.Speed.LOW)
-    mother_network.add_radio_edge(2, 3, SimpleNetwork.Speed.LOW)
-
-    # Add satellite edges
-    mother_network.add_satellite_edge(1, SimpleNetwork.Speed.LOW)
-    mother_network.add_satellite_edge(4, SimpleNetwork.Speed.LOW)
-    # mother_network.add_satellite_edge(2, SimpleNetwork.Speed.HIGH)
-
-    return mother_network
+    return network_family
 
 class ExampleGenerator(TaskGraphGenerator):
     def __init__(self, levels: List[int]) -> None:
@@ -141,15 +158,15 @@ class ExampleGenerator(TaskGraphGenerator):
                     continue
                 for src in nodes[-2]:
                     task_graph.add_dependency(src, task_count, random.choice(choices))
-
-
         return task_graph
     
-def draw_network(path: pathlib.Path,
-                 network: SimpleNetwork, 
+    
+def draw_network(network: SimpleNetwork, 
+                 path: Optional[pathlib.Path] = None,
                  subnetwork: Optional[SimpleNetwork] = None,
-                 title: str = "Network") -> None:
-    fig, ax = network.draw(subnetwork or network)
+                 title: str = "Network",
+                 ax: Optional[plt.Axes] = None) -> None:
+    fig, ax = network.draw(subnetwork or network, ax=ax)
     ax.set_title(title)
     
     # ax_cur_network.set_xlabel(f"Average makespan: {np.mean(makespans):.2f} ({len(makespans)} samples)")
@@ -181,19 +198,23 @@ def draw_network(path: pathlib.Path,
             [0], [0], color='#A3BE8C', label='High Speed Gray Cellular'
         )
     ])
-    ax.axis('off')
-    ax.margins(0)
-    fig.savefig(path)
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+
+    if path is not None:
+        fig.savefig(path)
+    return fig, ax
 
 def draw_task_graph(path: pathlib.Path, 
                     task_graph: SimpleTaskGraph,
-                    title: str = "Task Graph") -> None:
-    fig, ax = task_graph.draw()
+                    title: str = "Task Graph",
+                    ax: Optional[plt.Axes] = None) -> None:
+    fig, ax = task_graph.draw(ax)
     ax.set_title(title)
     ax.legend(
         handles=[
-            mpatches.Patch(color='#BF616A', label='High Cost/Data'),
-            mpatches.Patch(color='#EBCB8B', label='Low Cost/Data')
+            patches.Patch(color='#BF616A', label='High Cost/Data'),
+            patches.Patch(color='#EBCB8B', label='Low Cost/Data')
         ],
         loc="lower left"
     )
@@ -202,14 +223,8 @@ def draw_task_graph(path: pathlib.Path,
     fig.savefig(path)
 
 def main():
-    mother_network = get_network()    
-    draw_network(
-        path=savedir.joinpath("mother_network.png"),
-        network=mother_network,
-        title="Mother Network"
-    )
-
-    # _generator = CyclesGenerator(100)
+    network_family = get_network_family()
+    
     _generator = ExampleGenerator([5, 3, 1])
     task_graph_generator = TaskGraphSetGenerator(
         task_graphs=[
@@ -224,15 +239,8 @@ def main():
             task_graph=task_graph,
             title=f"Task Graph {i+1}"
         )   
-
+    
     scheduler = HeftScheduler()
-    proc_sched, task_sched, dict_sched  = scheduler.get_schedule(
-        network=mother_network,
-        task_graph=task_graph
-    )
-
-    saveGanttChart(proc_sched, savedir.joinpath("mother_network_schedule.png"))
-
     def cost_func(network: SimpleNetwork) -> Result:
         task_graphs = []
         makespans = []
@@ -264,15 +272,10 @@ def main():
                 "risk": risk,
             }
         )
-
-    optimizer_exhaustive = ExhaustiveSearch(
-        networks=mother_network.iter_subnetworks(),
-        cost_func=cost_func
-    )
-
-    optimizer_simulated_annealing = SimulatedAnnealingOptimizer(
-        start_network=mother_network.random_subnetwork(),
-        get_neighbor=mother_network.random_neighbor,
+    
+    optimizer = SimulatedAnnealingOptimizer(
+        start_network=network_family.random_network(),
+        get_neighbor=network_family.random_neighbor,
         cost_func=cost_func,
         n_iterations=MAX_ITERATIONS,
         accept=ExponentialCool(
@@ -280,27 +283,57 @@ def main():
             base=1/np.e
         )
     )
-
-    columns=["optimizer", "iteration", "avg_makespan", "deploy_cost", "risk", "cost"]
+    
+    columns=["iteration", "avg_makespan", "deploy_cost", "risk", "cost"]
     rows = []
-    for iteration, (res_exhaustive, res_simulated_annealing) in enumerate(
-            zip(optimizer_exhaustive.optimize_iter(), optimizer_simulated_annealing.optimize_iter()),
-            start=1
-        ):
-        for optimizer, res in [("exhaustive", res_exhaustive), ("simulated_annealing", res_simulated_annealing)]:
-            rows.append([
-                optimizer,
-                iteration,
-                np.inf if not res.metadata["makespans"] else np.mean(res.metadata["makespans"]),
-                res.metadata["deploy_cost"],
-                res.metadata["risk"],
-                res.cost,
-            ])
-            print(dict(zip(columns, rows[-1])))
+    best_cost: float = np.inf
+    best_network: Optional[SimpleNetwork] = None 
+    ZFILL = math.ceil(np.log10(MAX_ITERATIONS+1))
+    for iteration, res in enumerate(optimizer.optimize_iter(), start=1):
+        rows.append([
+            iteration,
+            np.inf if not res.metadata["makespans"] else np.mean(res.metadata["makespans"]),
+            res.metadata["deploy_cost"],
+            res.metadata["risk"],
+            res.cost,
+        ])
+        print(dict(zip(columns, rows[-1])))
+
+        if res.cost < best_cost:
+            best_cost, best_network = res.cost, deepcopy(res.network)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        savedir.joinpath("networks").mkdir(exist_ok=True, parents=True)
+        draw_network(
+            network=res.network,
+            title=f"Network (Iteration {str(iteration).zfill(ZFILL)})",
+            ax=ax1
+        )
+        draw_network(
+            network=best_network,
+            title=f"Best Network (Iteration {str(iteration).zfill(ZFILL)})",
+            ax=ax2
+        )
+        
+        fig.savefig(
+            savedir.joinpath("networks", f"iteration_{str(iteration).zfill(ZFILL)}.png")
+        )
+        
+    draw_network(
+        path=savedir.joinpath("best_network.png"),
+        network=best_network,
+        title="Best Network"
+    )
+    
+    task_graph = task_graph_generator.generate()
+    proc_sched, task_sched, dict_sched  = scheduler.get_schedule(
+        network=best_network,
+        task_graph=task_graph
+    )
+    saveGanttChart(proc_sched, savedir.joinpath("best_network_schedule.png"))
 
     df = pd.DataFrame(rows, columns=columns)
     df.to_csv(savedir.joinpath("results.csv"),index=None)
-
 
 if __name__ == "__main__":
     main()

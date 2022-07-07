@@ -1,7 +1,7 @@
 image:
   file: .gitpod.Dockerfile
 tasks:
-  - init: pip install --upgrade pip && pip install -e ./bnet_package && pip install -r ./requirements.txt && pip install pylint
+  - init: bash .devcontainer/setup.sh
 vscode:
   extensions:
     - ms-python.python

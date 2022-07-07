@@ -1,13 +1,15 @@
-# IOBT Network Synthesis Problem
+# The NSDC Framework
+[![Open In Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/ANRGUSC/nsdc)
 
-[![Open In Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/ANRGUSC/iobt_ns)
+Network Synthesis for Dispersed Computing (NSDC) - a general framework.
 
 ## Usage
 Take a look at and run the test scripts:
 ```bash
-python test/brute_force/main.py -s 5
-python test/comparison/main.py -s 5
+python test/exhaustive/main.py
+python test/exhaustive/plot_results.py
 ```
+Then, take a look at the output figures/plots/data generated in test/exhaustive/outputs.
 
 ## Acknowledgements
 This work was supported in part by Army Research Laboratory
