@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Hashable, Iterable, Optional
+from typing import Any, Callable, Dict, Hashable, Iterable, Optional
 
 import networkx as nx
-import pandas as pd 
+import pandas as pd
+
 from ..network import Network
 
 
@@ -12,7 +13,7 @@ class TaskGraph(ABC):
         super().__init__()
 
     @abstractmethod
-    def add_task(self, name: str, cost: Callable[[float], float]) -> None:
+    def add_task(self, name: str, cost: Any) -> None:
         """Adds a task to the task graph
 
         Args:
