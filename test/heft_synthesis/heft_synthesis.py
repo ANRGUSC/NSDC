@@ -1,3 +1,4 @@
+import bisect
 import pathlib
 from datetime import datetime, timedelta
 from functools import partial
@@ -9,9 +10,11 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import networkx as nx
 
 thisdir = pathlib.Path(__file__).resolve().parent
 
+# Map from processor ID to a list of (task ID, start time, end time) tuples
 ScheduleType = Dict[Hashable, List[Tuple[Hashable, float, float]]]
 
 Comparable = TypeVar('Comparable')
@@ -83,6 +86,51 @@ NodeComparator = Callable[
     [Set[int], Tuple[int, float], Tuple[int, float]], 
     Union[float, int]
 ]
+
+class Schedule:
+    def __init__(self) -> None:
+        self._processors: Dict[Hashable, List[Tuple[Hashable, float, float]]] = {}
+        self._tasks: Dict[Hashable, Hashable] = {}
+    
+    def schedule(self,
+                 task: Hashable,
+                 processor: Hashable,
+                 start_time: float,
+                 end_time: float) -> None:
+        if task in self._tasks:
+            raise ValueError(f"Task {task} already scheduled")
+        self._processors.setdefault(processor, [])
+        idx = bisect(
+            self._processors[processor], 
+            (task, start_time, end_time),
+            key=lambda x: x[1] # insert by start_time
+        )
+        try:
+            window_start = self._processors[processor][idx][2]
+            window_end = self._processors[processor][idx][1]
+            if window_start > start_time or window_end < end_time:
+                raise ValueError(f"Invalid window: {window_start}-{window_end}")
+            self._processors[processor].insert(idx, (task, start_time, end_time))
+            self._tasks[task] = {
+                'processor': processor,
+                'start_time': start_time,	# start time of task
+                'end_time': end_time,	    # end time of task
+            }
+        finally:
+            if len(self._processors[processor]) <= 0:
+                del self._processors[processor]
+
+    def get_task(self, task: Hashable) -> Hashable:
+        """Returns the ID of the processor which will execute the task
+        
+        Args:
+            task: ID of the task to get the processor for
+        
+        Returns:
+            Hashable: ID of the processor which will execute the task
+        """
+        return self._tasks[task]
+        
 
 def heft(data: np.ndarray, 
          comp: np.ndarray, 
