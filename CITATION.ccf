@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Coleman
+    given-names: Jared
+  - family-names: Krishnamachari
+    given-names: Bhaskar
+  - family-names: Grippo
+    given-names: Eugneio
+title: "NSDC Framework"
+version: 0.0.1
+date-released: 2022-03-07
